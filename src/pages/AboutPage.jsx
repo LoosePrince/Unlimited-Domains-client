@@ -71,7 +71,7 @@ const AboutPage = () => {
           <h3 className="text-xl font-medium text-slate-700 mb-3">数据与技术栈</h3>
           <div className="text-slate-600 space-y-3">
             <p>数据导出：支持按自定义阅读线导出公开有效章节，禁止一次性整本导出与多分叉线路导出。</p>
-            <p>技术：前端 React + Tailwind（思维导图可选 D3.js）；后端 Node.js（规划 GraphQL）与 PostgreSQL；容器采用 Docker。</p>
+            <p>技术：前端 React + Tailwind（思维导图使用纯 HTML5 Canvas）；后端 Node.js（规划 GraphQL）与 PostgreSQL；容器采用 Docker。</p>
           </div>
         </section>
 
