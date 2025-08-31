@@ -485,7 +485,7 @@ const NovelDetailPage = () => {
                 </div>
 
                 {chaptersMode === 'graph' ? (
-                  <div className="border border-slate-200 rounded-lg bg-white">
+                  <div className="rounded-lg bg-white">
                     <div className="h-[800px]">
                       <NovelEditView novel={novel} chapters={chapters} />
                     </div>
