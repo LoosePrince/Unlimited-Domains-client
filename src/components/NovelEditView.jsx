@@ -16,7 +16,8 @@ const NovelEditView = ({ novel, chapters, linkMode = 'detail', currentChapterId,
     lastMouseX: 0,
     lastMouseY: 0,
     dragStartX: 0,
-    dragStartY: 0
+    dragStartY: 0,
+    lastTouchDistance: null
   });
 
   // 节点数据
@@ -457,15 +458,34 @@ const NovelEditView = ({ novel, chapters, linkMode = 'detail', currentChapterId,
     return { fill: '#3b82f6', stroke: '#1e40af' };
   };
 
-  // 鼠标事件处理
-  const handleMouseDown = (e) => {
+  // 获取事件位置（兼容鼠标和触摸事件）
+  const getEventPosition = (e) => {
+    if (e.touches && e.touches[0]) {
+      // 触摸事件
+      return {
+        clientX: e.touches[0].clientX,
+        clientY: e.touches[0].clientY
+      };
+    } else {
+      // 鼠标事件
+      return {
+        clientX: e.clientX,
+        clientY: e.clientY
+      };
+    }
+  };
+
+  // 鼠标/触摸事件处理
+  const handlePointerDown = (e) => {
+    e.preventDefault();
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
-    const y = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+    const pos = getEventPosition(e);
+    const x = (pos.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
+    const y = (pos.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
 
     // 记录点击开始时间和位置
     setClickStartTime(Date.now());
-    setClickStartPos({ x: e.clientX, y: e.clientY });
+    setClickStartPos({ x: pos.clientX, y: pos.clientY });
 
     // 检查是否点击了节点
     const clickedNode = nodes.find(node =>
@@ -479,8 +499,8 @@ const NovelEditView = ({ novel, chapters, linkMode = 'detail', currentChapterId,
       setCanvasState(prev => ({
         ...prev,
         isDragging: true,
-        lastMouseX: e.clientX,
-        lastMouseY: e.clientY
+        lastMouseX: pos.clientX,
+        lastMouseY: pos.clientY
       }));
 
       // 临时设置选中状态（用于视觉反馈），但不立即显示侧边栏
@@ -493,17 +513,20 @@ const NovelEditView = ({ novel, chapters, linkMode = 'detail', currentChapterId,
       setCanvasState(prev => ({
         ...prev,
         isPanning: true,
-        lastMouseX: e.clientX,
-        lastMouseY: e.clientY
+        lastMouseX: pos.clientX,
+        lastMouseY: pos.clientY
       }));
     }
   };
 
-  const handleMouseMove = (e) => {
+  const handlePointerMove = (e) => {
+    e.preventDefault();
+    const pos = getEventPosition(e);
+
     if (canvasState.isDragging && draggedNode) {
       // 拖拽节点
-      const deltaX = (e.clientX - canvasState.lastMouseX) / canvasState.scale;
-      const deltaY = (e.clientY - canvasState.lastMouseY) / canvasState.scale;
+      const deltaX = (pos.clientX - canvasState.lastMouseX) / canvasState.scale;
+      const deltaY = (pos.clientY - canvasState.lastMouseY) / canvasState.scale;
 
       setNodes(prev => prev.map(n =>
         n.id === draggedNode.id
@@ -513,27 +536,27 @@ const NovelEditView = ({ novel, chapters, linkMode = 'detail', currentChapterId,
 
       setCanvasState(prev => ({
         ...prev,
-        lastMouseX: e.clientX,
-        lastMouseY: e.clientY
+        lastMouseX: pos.clientX,
+        lastMouseY: pos.clientY
       }));
     } else if (canvasState.isPanning) {
       // 平移画布
-      const deltaX = e.clientX - canvasState.lastMouseX;
-      const deltaY = e.clientY - canvasState.lastMouseY;
+      const deltaX = pos.clientX - canvasState.lastMouseX;
+      const deltaY = pos.clientY - canvasState.lastMouseY;
 
       setCanvasState(prev => ({
         ...prev,
         offsetX: prev.offsetX + deltaX,
         offsetY: prev.offsetY + deltaY,
-        lastMouseX: e.clientX,
-        lastMouseY: e.clientY
+        lastMouseX: pos.clientX,
+        lastMouseY: pos.clientY
       }));
     }
 
     // 检查悬停
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
-    const y = (e.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
+    const x = (pos.clientX - rect.left - canvasState.offsetX) / canvasState.scale;
+    const y = (pos.clientY - rect.top - canvasState.offsetY) / canvasState.scale;
 
     const hovered = nodes.find(node =>
       x >= node.x && x <= node.x + node.width &&
@@ -549,12 +572,13 @@ const NovelEditView = ({ novel, chapters, linkMode = 'detail', currentChapterId,
     }
   };
 
-  const handleMouseUp = (e) => {
+  const handlePointerUp = (e) => {
     const currentTime = Date.now();
+    const pos = e ? getEventPosition(e) : null;
     const timeDiff = currentTime - clickStartTime;
-    const moveDistance = e ? Math.sqrt(
-      Math.pow(e.clientX - clickStartPos.x, 2) +
-      Math.pow(e.clientY - clickStartPos.y, 2)
+    const moveDistance = pos ? Math.sqrt(
+      Math.pow(pos.clientX - clickStartPos.x, 2) +
+      Math.pow(pos.clientY - clickStartPos.y, 2)
     ) : 0;
 
     // 判断是否为真正的点击（时间小于300ms且移动距离小于5px）
@@ -601,6 +625,55 @@ const NovelEditView = ({ novel, chapters, linkMode = 'detail', currentChapterId,
       offsetY: newOffsetY
     }));
   };
+
+  // 处理触摸手势缩放
+  const handleTouchGesture = useCallback((e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+
+      const currentDistance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) +
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      );
+
+      if (canvasState.lastTouchDistance) {
+        const scaleFactor = currentDistance / canvasState.lastTouchDistance;
+        const newScale = Math.max(0.1, Math.min(3, canvasState.scale * scaleFactor));
+
+        // 计算中心点
+        const centerX = (touch1.clientX + touch2.clientX) / 2;
+        const centerY = (touch1.clientY + touch2.clientY) / 2;
+        const rect = canvasRef.current.getBoundingClientRect();
+
+        // 计算新的偏移量以保持中心点不变
+        const newOffsetX = centerX - rect.left - (centerX - rect.left - canvasState.offsetX) * (newScale / canvasState.scale);
+        const newOffsetY = centerY - rect.top - (centerY - rect.top - canvasState.offsetY) * (newScale / canvasState.scale);
+
+        setCanvasState(prev => ({
+          ...prev,
+          scale: newScale,
+          offsetX: newOffsetX,
+          offsetY: newOffsetY,
+          lastTouchDistance: currentDistance
+        }));
+      } else {
+        setCanvasState(prev => ({
+          ...prev,
+          lastTouchDistance: currentDistance
+        }));
+      }
+    }
+  }, [canvasState]);
+
+  // 重置触摸距离
+  const resetTouchDistance = useCallback(() => {
+    setCanvasState(prev => ({
+      ...prev,
+      lastTouchDistance: null
+    }));
+  }, []);
 
   // 重置视图
   const resetView = () => {
@@ -674,7 +747,8 @@ const NovelEditView = ({ novel, chapters, linkMode = 'detail', currentChapterId,
             lastMouseX: 0,
             lastMouseY: 0,
             dragStartX: 0,
-            dragStartY: 0
+            dragStartY: 0,
+            lastTouchDistance: null
           });
         }
       } else {
@@ -858,11 +932,20 @@ const NovelEditView = ({ novel, chapters, linkMode = 'detail', currentChapterId,
             <canvas
               ref={canvasRef}
               className="w-full h-full cursor-grab"
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
+              onMouseDown={handlePointerDown}
+              onMouseMove={handlePointerMove}
+              onMouseUp={handlePointerUp}
+              onTouchStart={handlePointerDown}
+              onTouchMove={(e) => {
+                handlePointerMove(e);
+                handleTouchGesture(e);
+              }}
+              onTouchEnd={(e) => {
+                handlePointerUp(e);
+                resetTouchDistance();
+              }}
               onWheel={handleWheel}
-              onMouseLeave={() => handleMouseUp(null)}
+              onMouseLeave={() => handlePointerUp(null)}
             />
 
             {/* 左下角视图控制按钮 */}
