@@ -82,6 +82,7 @@ const ReaderPage = () => {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [catalogMode, setCatalogMode] = useState('list'); // list | view
+  const [viewCentered, setViewCentered] = useState(false); // 视图是否已居中
   const [branchChoices, setBranchChoices] = useState(null); // 分支选择弹窗
   const [settingsCollapsed, setSettingsCollapsed] = useState({
     common: false,
@@ -773,6 +774,28 @@ const ReaderPage = () => {
     // 重置进度获取标志
     progressFetchedRef.current = false;
   }, [novelId, chapterId]);
+
+  // 根据小说类型自动设置目录模式
+  useEffect(() => {
+    if (novel && novel.novel_type) {
+      // 传统小说默认使用列表模式，非传统小说默认使用视图模式
+      const defaultMode = novel.novel_type === 'traditional' ? 'list' : 'view';
+      setCatalogMode(defaultMode);
+
+      // 重置视图居中状态，让视图可以重新居中
+      setViewCentered(false);
+    }
+  }, [novel]);
+
+  // 当目录模式切换时，重置视图居中状态
+  useEffect(() => {
+    setViewCentered(false);
+  }, [catalogMode]);
+
+  // 当当前章节变化时，重置视图居中状态
+  useEffect(() => {
+    setViewCentered(false);
+  }, [chapterId]);
 
   // 当内容加载完成时，重新计算分页
   useEffect(() => {
@@ -1588,7 +1611,7 @@ const ReaderPage = () => {
                       ? 'bg-red-50 border-red-200 text-red-700 hover:border-red-300'
                       : (isDark ? 'border-slate-600 text-slate-300 hover:border-slate-500' : 'border-slate-200 text-slate-600 hover:border-slate-300')
                       } ${likeLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    style={isLiked ? {} : (isDark ? { backgroundColor: '#1f2937' } : { backgroundColor: 'white' })}
+                    style={isLiked ? {} : (isDark ? { backgroundColor: '#191c1f' } : { backgroundColor: 'white' })}
                   >
                     {isLiked ? (
                       <IconHeartFilled className="w-4 h-4" />
@@ -1608,7 +1631,7 @@ const ReaderPage = () => {
                       ? 'border-slate-600 text-slate-300 hover:border-slate-500'
                       : 'border-slate-200 text-slate-600 hover:border-slate-300'
                       }`}
-                    style={isDark ? { backgroundColor: '#1f2937' } : { backgroundColor: 'white' }}
+                    style={isDark ? { backgroundColor: '#191c1f' } : { backgroundColor: 'white' }}
                     title="下一章"
                   >
                     <IconChevronRight className="w-4 h-4" stroke={1.8} />
@@ -1622,7 +1645,7 @@ const ReaderPage = () => {
                       ? 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300'
                       : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-600'
                       }`}
-                    style={isDark ? { backgroundColor: '#1f2937' } : { backgroundColor: 'white' }}
+                    style={isDark ? { backgroundColor: '#191c1f' } : { backgroundColor: 'white' }}
                   >
                     <IconMessagePlus className="w-4 h-4" stroke={1.8} />
                     <span>举报</span>
@@ -1888,7 +1911,7 @@ const ReaderPage = () => {
                                       ? 'bg-red-50 border-red-200 text-red-700 hover:border-red-300'
                                       : (isDark ? 'border-slate-600 text-slate-300 hover:border-slate-500' : 'border-slate-200 text-slate-600 hover:border-slate-300')
                                       } ${likeLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    style={isLiked ? {} : (isDark ? { backgroundColor: '#1f2937' } : { backgroundColor: 'white' })}
+                                    style={isLiked ? {} : (isDark ? { backgroundColor: '#191c1f' } : { backgroundColor: 'white' })}
                                   >
                                     {isLiked ? (
                                       <IconHeartFilled className="w-4 h-4" />
@@ -1906,7 +1929,7 @@ const ReaderPage = () => {
                                       ? 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300'
                                       : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-600'
                                       }`}
-                                    style={isDark ? { backgroundColor: '#1f2937' } : { backgroundColor: 'white' }}
+                                    style={isDark ? { backgroundColor: '#191c1f' } : { backgroundColor: 'white' }}
                                   >
                                     <IconMessagePlus className="w-4 h-4" stroke={1.8} />
                                     <span>举报</span>
@@ -2659,7 +2682,7 @@ const ReaderPage = () => {
                 </div>
               ) : (
                 <div className="h-[70vh]">
-                  <NovelEditView novel={novel || { id: novelId }} chapters={chapters} linkMode="read" currentChapterId={chapter.id} isDark={isDark} />
+                  <NovelEditView novel={novel || { id: novelId }} chapters={chapters} linkMode="read" currentChapterId={chapter.id} isDark={isDark} viewCentered={viewCentered} setViewCentered={setViewCentered} />
                 </div>
               )}
             </div>

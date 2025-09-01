@@ -287,7 +287,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4" style={isDark ? { backgroundColor: '#0e1516', borderColor: '#1a2223' } : {}}>
+        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4" style={isDark ? { backgroundColor: '#191c1f', borderColor: '#2a2d30' } : {}}>
           <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>举报评论</h3>
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
@@ -298,7 +298,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 className={`w-full p-2 border rounded-md ${isDark ? 'text-slate-100 border-slate-600' : 'border-gray-300'}`}
-                style={isDark ? { backgroundColor: '#1a2223', borderColor: '#374151' } : {}}
+                style={isDark ? { backgroundColor: '#232629', borderColor: '#2a2d30' } : {}}
                 required
               >
                 <option value="">请选择原因</option>
@@ -315,7 +315,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 className={`w-full p-2 border rounded-md ${isDark ? 'text-slate-100 border-slate-600' : 'border-gray-300'}`}
-                style={isDark ? { backgroundColor: '#1a2223', borderColor: '#374151' } : {}}
+                style={isDark ? { backgroundColor: '#232629', borderColor: '#2a2d30' } : {}}
                 rows="3"
                 placeholder="请描述具体问题..."
                 maxLength="500"
@@ -326,7 +326,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
                 type="button"
                 onClick={onClose}
                 className={`flex-1 px-4 py-2 border rounded-md ${isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}
-                style={isDark ? { backgroundColor: '#1a2223' } : {}}
+                style={isDark ? { backgroundColor: '#232629' } : {}}
               >
                 取消
               </button>
@@ -348,7 +348,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-96 max-w-[90vw]" style={isDark ? { backgroundColor: '#1f2937', borderColor: '#374151' } : {}}>
+        <div className="bg-white rounded-lg p-6 w-96 max-w-[90vw]" style={isDark ? { backgroundColor: '#191c1f', borderColor: '#2a2d30' } : {}}>
           <div className="flex justify-between items-center mb-4">
             <h3 className={`text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>确认删除</h3>
             <button
@@ -366,7 +366,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
               type="button"
               onClick={onClose}
               className={`flex-1 px-4 py-2 border rounded-md transition-colors ${isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-              style={isDark ? { backgroundColor: '#374151' } : {}}
+              style={isDark ? { backgroundColor: '#2a2d30' } : {}}
             >
               取消
             </button>
@@ -504,9 +504,9 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
   }, [isDark, expandedReplies, commentReplies, handleLikeComment, toggleReplies, setReportTarget, setReportModalOpen, handleDeleteComment, user]);
 
   return (
-    <div className="rounded-lg shadow-sm border p-4" style={{ 
-      backgroundColor: isDark ? '#1f2937' : 'white',
-      borderColor: isDark ? '#374151' : '#d1d5db'
+    <div className="rounded-lg shadow-sm border p-4" style={{
+      backgroundColor: isDark ? '#191c1f' : 'white',
+      borderColor: isDark ? '#2a2d30' : '#d1d5db'
     }}>
       <h3 className="text-base font-semibold mb-3" style={{ 
         color: isDark ? '#f9fafb' : '#1f2937'
@@ -522,8 +522,8 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
             onChange={(e) => setNewComment(e.target.value)}
             className="w-full p-2 border rounded-md resize-none text-sm"
             style={{
-              backgroundColor: isDark ? '#374151' : 'white',
-              borderColor: isDark ? '#4b5563' : '#d1d5db',
+              backgroundColor: isDark ? '#232629' : 'white',
+              borderColor: isDark ? '#2a2d30' : '#d1d5db',
               color: isDark ? '#f9fafb' : '#1f2937'
             }}
             rows="2"
@@ -547,7 +547,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
         </form>
       ) : (
         <div className="mb-4 p-3 rounded-md text-center text-sm" style={{
-          backgroundColor: isDark ? '#374151' : '#f9fafb',
+          backgroundColor: isDark ? '#232629' : '#f9fafb',
           color: isDark ? '#d1d5db' : '#6b7280'
         }}>
           <p>请先登录后参与评论</p>
@@ -581,8 +581,8 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
                     onChange={(e) => setReplyContent(e.target.value)}
                     className="w-full p-2 border rounded-md resize-none text-sm"
                     style={{
-                      backgroundColor: isDark ? '#374151' : 'white',
-                      borderColor: isDark ? '#4b5563' : '#d1d5db',
+                      backgroundColor: isDark ? '#232629' : 'white',
+                      borderColor: isDark ? '#2a2d30' : '#d1d5db',
                       color: isDark ? '#f9fafb' : '#1f2937'
                     }}
                     rows="2"
@@ -605,9 +605,9 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
                       }}
                       className="px-2 py-1 border rounded text-xs hover:opacity-75"
                       style={{
-                        borderColor: isDark ? '#4b5563' : '#d1d5db',
+                        borderColor: isDark ? '#2a2d30' : '#d1d5db',
                         color: isDark ? '#d1d5db' : '#6b7280',
-                        backgroundColor: isDark ? '#374151' : 'white'
+                        backgroundColor: isDark ? '#232629' : 'white'
                       }}
                     >
                       取消
