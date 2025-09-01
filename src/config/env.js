@@ -16,6 +16,9 @@ export const config = {
   // 客户端配置
   CLIENT_PORT: parseInt(import.meta.env.VITE_CLIENT_PORT) || 3001,
   
+  // 路由配置
+  ROUTER_MODE: import.meta.env.VITE_ROUTER_MODE || 'hash', // 'hash' 或 'browser'
+  
   // 功能开关
   FEATURES: {
     DEBUG_MODE: import.meta.env.VITE_DEBUG === 'true',

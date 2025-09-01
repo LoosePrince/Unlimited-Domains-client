@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const UserAvatar = ({ 
   user, 
@@ -51,15 +52,15 @@ const UserAvatar = ({
 
   // 如果需要链接到个人资料，包装在Link中
   return (
-    <a 
-      href={`/profile/${user.id}`}
+    <Link 
+      to={`/profile/${user.id}`}
       className="flex items-center gap-2 hover:bg-slate-50 rounded-lg px-2 py-1 transition-colors"
     >
       {avatarElement}
       {showUsername && user?.username && (
         <span className="text-slate-700">{user.username}</span>
       )}
-    </a>
+    </Link>
   );
 };
 

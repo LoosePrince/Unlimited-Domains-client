@@ -114,7 +114,7 @@ const HomePage = () => {
               e.preventDefault();
               const query = e.target.homeSearch.value.trim();
               if (query) {
-                window.location.href = `/search?q=${encodeURIComponent(query)}`;
+                navigate(`/search?q=${encodeURIComponent(query)}`);
               }
             }}
             className="max-w-2xl mx-auto mb-8"

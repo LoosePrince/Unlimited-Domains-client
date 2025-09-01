@@ -53,7 +53,12 @@ api.interceptors.response.use(
           } catch (refreshError) {
             // 刷新失败，清除token
             localStorage.removeItem('token');
-            window.location.href = '/login';
+            // 根据路由模式选择重定向方式
+            if (config.ROUTER_MODE === 'hash') {
+              window.location.hash = '#/login';
+            } else {
+              window.location.href = '/login';
+            }
           }
         }
       }

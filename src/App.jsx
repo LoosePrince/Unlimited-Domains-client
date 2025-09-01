@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter, BrowserRouter, Routes, Route } from 'react-router-dom';
+import config from './config/env';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -19,6 +20,9 @@ import ProfilePage from './pages/ProfilePage';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
+  // 根据配置选择路由模式
+  const Router = config.ROUTER_MODE === 'hash' ? HashRouter : BrowserRouter;
+  
   return (
     <AuthProvider>
       <Router>
