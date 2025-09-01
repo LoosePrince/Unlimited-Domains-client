@@ -1,4 +1,4 @@
-name: Deploy ChatFlow-client
+name: 部署到 GitHub Pages
 
 on:
   push:
@@ -21,29 +21,29 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: 检出代码
         uses: actions/checkout@v4
       
-      - name: Set up Node.js
+      - name: 设置 Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
       
-      - name: Install dependencies
+      - name: 安装依赖
         run: npm install
       
-      - name: Build project
+      - name: 构建项目
         run: npm run build
       
-      - name: Setup Pages
+      - name: 设置 Pages
         uses: actions/configure-pages@v5
       
-      - name: Upload artifact
+      - name: 上传 artifact
         uses: actions/upload-pages-artifact@v3
         with:
           # 上传dist文件夹而不是整个仓库
           path: 'dist'
       
-      - name: Deploy to GitHub Pages
+      - name: 部署到 GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
