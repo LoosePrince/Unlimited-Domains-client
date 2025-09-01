@@ -382,7 +382,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
     );
   };
 
-  const CommentItem = useCallback(({ comment, isReply = false }) => {
+  const CommentItem = useCallback(({ comment, isReply = false, allComments = [], parentCommentId = null }) => {
     
     return (
       <div className={`${isReply ? 'ml-6 border-l-2 pl-3' : ''}`} style={{
@@ -427,9 +427,22 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
                 {new Date(comment.created_at).toLocaleString()}
               </span>
             </div>
-            <p className="text-sm mb-2" style={{ 
+            <p className="text-sm mb-2" style={{
               color: isDark ? '#e5e7eb' : '#374151'
-            }}>{comment.content}</p>
+            }}>
+              {(() => {
+                // 查找父评论信息
+                const parentComment = parentCommentId ?
+                  [...allComments, ...Object.values(commentReplies).flat()].find(c => c.id === parentCommentId) :
+                  null;
+
+                // 如果是回复且有父评论，则显示回复前缀
+                const shouldShowPrefix = isReply && parentComment && parentComment.username !== comment.username;
+                const prefix = shouldShowPrefix ? `回复 @${parentComment.username}：` : '';
+
+                return <>{prefix}{comment.content}</>;
+              })()}
+            </p>
             <div className="flex items-center space-x-3 text-xs">
               <button
                 onClick={() => handleLikeComment(comment.id)}
@@ -448,15 +461,13 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
                 )}
                 <span>{comment.like_count || 0}</span>
               </button>
-              {!isReply && (
-                <button
-                  onClick={() => setReplyingTo(comment.id)}
-                  className="hover:opacity-75"
-                  style={{ color: isDark ? '#60a5fa' : '#2563eb' }}
-                >
-                  回复
-                </button>
-              )}
+              <button
+                onClick={() => setReplyingTo(comment.id)}
+                className="hover:opacity-75"
+                style={{ color: isDark ? '#60a5fa' : '#2563eb' }}
+              >
+                回复
+              </button>
               {!isReply && parseInt(comment.reply_count) > 0 && (
                 <button
                   onClick={() => toggleReplies(comment.id)}
@@ -494,14 +505,62 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
           <div className="mt-2">
             {commentReplies[comment.id].map(reply => (
               <div key={reply.id} className="mb-2">
-                <CommentItem comment={{...reply, parent_comment_id: comment.id}} isReply={true} />
+                <CommentItem
+                  comment={reply}
+                  isReply={true}
+                  allComments={[...comments, ...Object.values(commentReplies).flat()]}
+                  parentCommentId={reply.parent_comment_id}
+                />
+
+                {/* 回复表单 - 放在CommentItem外部，避免重新渲染 */}
+                {replyingTo === reply.id && (
+                  <form onSubmit={(e) => handleSubmitReply(e, reply.id)} className="mt-2 ml-6">
+                    <textarea
+                      value={replyContent}
+                      onChange={(e) => setReplyContent(e.target.value)}
+                      className="w-full p-2 border rounded-md resize-none text-sm"
+                      style={{
+                        backgroundColor: isDark ? '#232629' : 'white',
+                        borderColor: isDark ? '#2a2d30' : '#d1d5db',
+                        color: isDark ? '#f9fafb' : '#1f2937'
+                      }}
+                      rows="2"
+                      placeholder="写下你的回复..."
+                      maxLength="1000"
+                    />
+                    <div className="flex space-x-2 mt-2">
+                      <button
+                        type="submit"
+                        disabled={submitting || !replyContent.trim()}
+                        className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {submitting ? '发布中...' : '回复'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReplyingTo(null);
+                          setReplyContent('');
+                        }}
+                        className="px-2 py-1 border rounded text-xs hover:opacity-75"
+                        style={{
+                          borderColor: isDark ? '#2a2d30' : '#d1d5db',
+                          color: isDark ? '#d1d5db' : '#6b7280',
+                          backgroundColor: isDark ? '#232629' : 'white'
+                        }}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
     );
-  }, [isDark, expandedReplies, commentReplies, handleLikeComment, toggleReplies, setReportTarget, setReportModalOpen, handleDeleteComment, user]);
+  }, [isDark, expandedReplies, commentReplies, handleLikeComment, toggleReplies, setReportTarget, setReportModalOpen, handleDeleteComment, user, comments]);
 
   return (
     <div className="rounded-lg shadow-sm border p-4" style={{
@@ -571,8 +630,8 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
         <div className="space-y-3">
           {comments.map(comment => (
             <div key={comment.id}>
-              <CommentItem comment={comment} />
-              
+              <CommentItem comment={comment} allComments={comments} parentCommentId={comment.parent_comment_id} />
+
               {/* 回复表单 - 放在CommentItem外部，避免重新渲染 */}
               {replyingTo === comment.id && (
                 <form onSubmit={(e) => handleSubmitReply(e, comment.id)} className="mt-2 ml-8">
