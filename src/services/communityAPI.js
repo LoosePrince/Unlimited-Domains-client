@@ -1,6 +1,7 @@
 import axios from 'axios';
+import config from '../config/env';
 
-const API_BASE_URL = '/api/community';
+const API_BASE_URL = config.API_BASE_URL + '/api/community';
 
 export const getCommunityHome = async () => {
   try {
@@ -101,7 +102,7 @@ export const shareArticle = async (id) => {
 export const reportArticle = async (id, reason = 'other', description = '') => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.post(`/api/community/articles/${id}/report`, { reason, description }, {
+    const response = await axios.post(`${API_BASE_URL}/articles/${id}/report`, { reason, description }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     return response.data;
@@ -114,7 +115,7 @@ export const reportArticle = async (id, reason = 'other', description = '') => {
 export const likeComment = async (commentId) => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.post(`/api/community/comments/${commentId}/like`, {}, {
+    const response = await axios.post(`${API_BASE_URL}/comments/${commentId}/like`, {}, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     return response.data;
@@ -127,7 +128,7 @@ export const likeComment = async (commentId) => {
 export const reportComment = async (commentId, reason = 'other', description = '') => {
   try {
     const token = localStorage.getItem('token');
-    const response = await axios.post(`/api/community/comments/${commentId}/report`, { reason, description }, {
+    const response = await axios.post(`${API_BASE_URL}/comments/${commentId}/report`, { reason, description }, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     return response.data;

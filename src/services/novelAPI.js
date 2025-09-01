@@ -1,6 +1,7 @@
 import axios from 'axios';
+import config from '../config/env';
 
-const API_BASE_URL = '/api/novels';
+const API_BASE_URL = config.API_BASE_URL + '/api/novels';
 
 // 创建小说
 export const createNovel = async (novelData) => {
