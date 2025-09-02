@@ -24,8 +24,15 @@ const Navigation = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/" className="text-2xl font-light text-slate-700 text-glow">
-              无限域
+            <Link to="/" className="flex items-center space-x-2">
+              <img 
+                src="/logo.ico" 
+                alt="无限域" 
+                className="w-8 h-8" 
+              />
+              <span className="text-2xl font-light text-slate-700 text-glow">
+                无限域
+              </span>
             </Link>
           </div>
 
