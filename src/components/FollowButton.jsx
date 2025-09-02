@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from './Modal';
 
 const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
     const { user, token } = useAuth();
+    const modal = useModal();
     const [isFollowing, setIsFollowing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [followCount, setFollowCount] = useState(0);
@@ -45,12 +47,18 @@ const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
 
     const handleFollow = async () => {
         if (!user) {
-            alert('请先登录');
+            modal.showWarning({
+                title: '登录提示',
+                message: '请先登录后再关注'
+            });
             return;
         }
 
         if (user.id === targetUserId) {
-            alert('不能关注自己');
+            modal.showWarning({
+                title: '操作提示',
+                message: '不能关注自己'
+            });
             return;
         }
 
@@ -78,11 +86,17 @@ const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
                     setFollowCount(prev => prev + 1);
                 }
             } else {
-                alert(data.message);
+                modal.showError({
+                    title: '操作失败',
+                    message: data.message || '操作失败，请稍后重试'
+                });
             }
         } catch (error) {
             console.error('操作失败:', error);
-            alert('操作失败，请稍后重试');
+            modal.showError({
+                title: '网络错误',
+                message: '网络连接失败，请检查网络后重试'
+            });
         } finally {
             setIsLoading(false);
         }

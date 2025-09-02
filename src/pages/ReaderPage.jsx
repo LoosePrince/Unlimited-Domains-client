@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getChapterById, updateReadingProgress, addReadingHistory, getNovelChapters, getNovelById, getReadingProgress, getReadingPaths, getUserCustomPath, getAuthorRecommendedPath, getRandomNextChapter, getReadingPathDetail, toggleChapterLike, checkChapterLikeStatus, getChapterLikeCount, reportChapter } from '../services/novelAPI';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from '../components/Modal';
 import NovelEditView from '../components/NovelEditView';
 import { getBookmarksByNovel, addBookmark, removeBookmark, checkBookmarkExists, getGlobalBookmarks, getOtherBookmarks } from '../services/novelAPI';
 import ChapterComments from '../components/ChapterComments';
@@ -56,6 +57,7 @@ const ReaderPage = () => {
   const { novelId, chapterId } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const modal = useModal();
 
   const [chapter, setChapter] = useState(null);
   const [novel, setNovel] = useState(null);
@@ -97,7 +99,7 @@ const ReaderPage = () => {
   const [bookmarks, setBookmarks] = useState([]);
   const [globalBookmarks, setGlobalBookmarks] = useState([]);
   const [otherBookmarks, setOtherBookmarks] = useState([]);
-  const [confirmModal, setConfirmModal] = useState({ open: false, title: '', message: '', onConfirm: null });
+
 
   const BookmarkList = ({ items, emptyText, onJump }) => {
     if (!items || items.length === 0) {
@@ -132,11 +134,12 @@ const ReaderPage = () => {
               <button
                 title="删除书签"
                 className={`p-1.5 rounded ${isDark ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}
-                onClick={() => {
-                  setConfirmModal({
-                    open: true,
+onClick={() => {
+                  modal.showConfirm({
+                    type: 'warning',
                     title: '删除书签',
                     message: '确定要删除该书签吗？此操作不可撤销。',
+                    darkMode: isDark,
                     onConfirm: async () => {
                       const res = await removeBookmark(item.chapter_id);
                       if (res && res.success) {
@@ -168,7 +171,6 @@ const ReaderPage = () => {
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [likeLoading, setLikeLoading] = useState(false);
-  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   // 翻页相关状态
   const [paginationMode, setPaginationMode] = useState(() => {
@@ -728,7 +730,11 @@ const ReaderPage = () => {
   // 切换章节点赞状态
   const handleToggleChapterLike = async () => {
     if (!isAuthenticated) {
-      alert('请先登录');
+      modal.showWarning({
+        title: '登录提示',
+        message: '请先登录后再点赞',
+        darkMode: isDark
+      });
       return;
     }
 
@@ -739,10 +745,18 @@ const ReaderPage = () => {
         setIsLiked(result.action === 'like');
         setLikeCount(prev => result.action === 'like' ? prev + 1 : prev - 1);
       } else {
-        alert(result.message || '操作失败');
+        modal.showError({
+          title: '操作失败',
+          message: result.message || '操作失败，请稍后重试',
+          darkMode: isDark
+        });
       }
     } catch (error) {
-      alert('网络错误，请稍后重试');
+      modal.showError({
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试',
+        darkMode: isDark
+      });
     } finally {
       setLikeLoading(false);
     }
@@ -753,13 +767,24 @@ const ReaderPage = () => {
     try {
       const result = await reportChapter(novelId, chapterId, reason, description);
       if (result.success) {
-        alert('举报提交成功，我们会尽快处理');
-        setReportModalOpen(false);
+        modal.showSuccess({
+          title: '举报成功',
+          message: '举报提交成功，我们会尽快处理',
+          darkMode: isDark
+        });
       } else {
-        alert(result.message || '举报失败');
+        modal.showError({
+          title: '举报失败',
+          message: result.message || '举报失败，请稍后重试',
+          darkMode: isDark
+        });
       }
     } catch (error) {
-      alert('网络错误，请稍后重试');
+      modal.showError({
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试',
+        darkMode: isDark
+      });
     }
   };
 
@@ -1640,7 +1665,75 @@ const ReaderPage = () => {
 
                   {/* 举报按钮 */}
                   <button
-                    onClick={() => setReportModalOpen(true)}
+                    onClick={() => {
+                      modal.showForm({
+                        title: '举报章节',
+                        darkMode: isDark,
+                        confirmText: '提交举报',
+                        cancelText: '取消',
+                        children: (
+                          <div className="space-y-4">
+                            <div>
+                              <label className={`block text-sm font-medium mb-2 ${
+                                isDark ? 'text-slate-300' : 'text-gray-700'
+                              }`}>
+                                举报原因 *
+                              </label>
+                              <select
+                                name="reason"
+                                className={`w-full p-2 border rounded-md ${
+                                  isDark 
+                                    ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
+                                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+                                }`}
+                                required
+                              >
+                                <option value="">请选择原因</option>
+                                <option value="违法违规">违法违规</option>
+                                <option value="色情低俗">色情低俗</option>
+                                <option value="广告垃圾">广告垃圾</option>
+                                <option value="恶意骚扰">恶意骚扰</option>
+                                <option value="侵犯版权">侵犯版权</option>
+                                <option value="其他">其他</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className={`block text-sm font-medium mb-2 ${
+                                isDark ? 'text-slate-300' : 'text-gray-700'
+                              }`}>
+                                详细描述
+                              </label>
+                              <textarea
+                                name="description"
+                                className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
+                                  isDark 
+                                    ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
+                                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+                                }`}
+                                rows="3"
+                                placeholder="请描述具体问题..."
+                                maxLength="500"
+                              />
+                            </div>
+                          </div>
+                        ),
+                        onConfirm: (formElement) => {
+                          const formData = new FormData(formElement);
+                          const reason = formData.get('reason');
+                          const description = formData.get('description');
+                          if (!reason) {
+                            modal.showWarning({
+                              title: '请选择举报原因',
+                              message: '请先选择一个举报原因',
+                              darkMode: isDark
+                            });
+                            return false;
+                          }
+                          handleReportChapter(reason, description);
+                          return true;
+                        }
+                      });
+                    }}
                     className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border text-sm transition-colors ${isDark
                       ? 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300'
                       : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-600'
@@ -1924,7 +2017,75 @@ const ReaderPage = () => {
                                     <span className="text-xs opacity-75">({likeCount})</span>
                                   </button>
                                   <button
-                                    onClick={() => setReportModalOpen(true)}
+                                    onClick={() => {
+                                      modal.showForm({
+                                        title: '举报章节',
+                                        darkMode: isDark,
+                                        confirmText: '提交举报',
+                                        cancelText: '取消',
+                                        children: (
+                                          <div className="space-y-4">
+                                            <div>
+                                              <label className={`block text-sm font-medium mb-2 ${
+                                                isDark ? 'text-slate-300' : 'text-gray-700'
+                                              }`}>
+                                                举报原因 *
+                                              </label>
+                                              <select
+                                                name="reason"
+                                                className={`w-full p-2 border rounded-md ${
+                                                  isDark 
+                                                    ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
+                                                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+                                                }`}
+                                                required
+                                              >
+                                                <option value="">请选择原因</option>
+                                                <option value="违法违规">违法违规</option>
+                                                <option value="色情低俗">色情低俗</option>
+                                                <option value="广告垃圾">广告垃圾</option>
+                                                <option value="恶意骚扰">恶意骚扰</option>
+                                                <option value="侵犯版权">侵犯版权</option>
+                                                <option value="其他">其他</option>
+                                              </select>
+                                            </div>
+                                            <div>
+                                              <label className={`block text-sm font-medium mb-2 ${
+                                                isDark ? 'text-slate-300' : 'text-gray-700'
+                                              }`}>
+                                                详细描述
+                                              </label>
+                                              <textarea
+                                                name="description"
+                                                className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
+                                                  isDark 
+                                                    ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
+                                                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+                                                }`}
+                                                rows="3"
+                                                placeholder="请描述具体问题..."
+                                                maxLength="500"
+                                              />
+                                            </div>
+                                          </div>
+                                        ),
+                                        onConfirm: (formElement) => {
+                                          const formData = new FormData(formElement);
+                                          const reason = formData.get('reason');
+                                          const description = formData.get('description');
+                                          if (!reason) {
+                                            modal.showWarning({
+                                              title: '请选择举报原因',
+                                              message: '请先选择一个举报原因',
+                                              darkMode: isDark
+                                            });
+                                            return false;
+                                          }
+                                          handleReportChapter(reason, description);
+                                          return true;
+                                        }
+                                      });
+                                    }}
                                     className={`flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border text-sm transition-colors ${isDark
                                       ? 'border-slate-600 text-slate-400 hover:border-slate-500 hover:text-slate-300'
                                       : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-600'
@@ -2739,40 +2900,7 @@ const ReaderPage = () => {
         </div>
       )}
 
-      {/* 确认模态窗 */}
-      {confirmModal.open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className={`${overlayBg} absolute inset-0`} onClick={() => setConfirmModal({ open: false, title: '', message: '', onConfirm: null })} />
-          <div className={`relative w-full max-w-sm mx-auto rounded-2xl shadow-2xl border ${drawerBg}`} style={drawerStyle}>
-            <div className="p-5 border-b" style={isDark ? { borderColor: '#1a2223' } : { borderColor: '#e2e8f0' }}>
-              <h3 className={`text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{confirmModal.title || '确认操作'}</h3>
-            </div>
-            <div className="p-5 text-sm">
-              <p className={`${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{confirmModal.message || '确定要继续吗？'}</p>
-            </div>
-            <div className="p-4 flex items-center justify-end gap-2 border-t" style={isDark ? { borderColor: '#1a2223' } : { borderColor: '#e2e8f0' }}>
-              <button
-                onClick={() => setConfirmModal({ open: false, title: '', message: '', onConfirm: null })}
-                className={`px-3 py-1.5 rounded ${isDark ? 'bg-slate-800 text-slate-200 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-              >
-                取消
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    if (typeof confirmModal.onConfirm === 'function') await confirmModal.onConfirm();
-                  } finally {
-                    setConfirmModal({ open: false, title: '', message: '', onConfirm: null });
-                  }
-                }}
-                className="px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white"
-              >
-                确认
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* 分支选择弹窗 */}
       {branchChoices && branchChoices.length > 1 && (
@@ -2836,70 +2964,6 @@ const ReaderPage = () => {
         </div>
       )}
 
-      {/* 举报模态框 */}
-      {reportModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4" style={isDark ? { backgroundColor: '#0e1516', borderColor: '#1a2223' } : {}}>
-            <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>举报章节</h3>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.target);
-              const reason = formData.get('reason');
-              const description = formData.get('description');
-              handleReportChapter(reason, description);
-            }}>
-              <div className="mb-4">
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
-                  举报原因 *
-                </label>
-                <select
-                  name="reason"
-                  className={`w-full p-2 border rounded-md ${isDark ? 'text-slate-100 border-slate-600' : 'border-gray-300'}`}
-                  style={isDark ? { backgroundColor: '#1a2223', borderColor: '#374151' } : {}}
-                  required
-                >
-                  <option value="">请选择原因</option>
-                  <option value="违法违规">违法违规</option>
-                  <option value="色情低俗">色情低俗</option>
-                  <option value="广告垃圾">广告垃圾</option>
-                  <option value="恶意骚扰">恶意骚扰</option>
-                  <option value="侵犯版权">侵犯版权</option>
-                  <option value="其他">其他</option>
-                </select>
-              </div>
-              <div className="mb-4">
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
-                  详细描述
-                </label>
-                <textarea
-                  name="description"
-                  className={`w-full p-2 border rounded-md ${isDark ? 'text-slate-100 border-slate-600' : 'border-gray-300'}`}
-                  style={isDark ? { backgroundColor: '#1a2223', borderColor: '#374151' } : {}}
-                  rows="3"
-                  placeholder="请描述具体问题..."
-                  maxLength="500"
-                />
-              </div>
-              <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setReportModalOpen(false)}
-                  className={`flex-1 px-4 py-2 border rounded-md ${isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}
-                  style={isDark ? { backgroundColor: '#1a2223' } : {}}
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                >
-                  提交举报
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

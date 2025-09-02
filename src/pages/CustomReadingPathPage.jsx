@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from '../components/Modal';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { 
@@ -17,6 +18,7 @@ const CustomReadingPathPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const modal = useModal();
 
   const [novel, setNovel] = useState(null);
   const [chapterTree, setChapterTree] = useState([]);
@@ -127,7 +129,10 @@ const CustomReadingPathPage = () => {
           };
         } else {
           // 无效选择，显示错误提示
-          alert('只能选择当前章节的直接后续章节');
+          modal.showWarning({
+            title: '选择限制',
+            message: '只能选择当前章节的直接后续章节'
+          });
           return prev;
         }
       }

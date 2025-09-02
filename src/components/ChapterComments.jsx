@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from './Modal';
 import { Link } from 'react-router-dom';
 import { 
   getChapterComments, 
@@ -15,6 +16,7 @@ import UserAvatar from './UserAvatar';
 
 const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
   const { user, isAuthenticated } = useAuth();
+  const modal = useModal();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -23,10 +25,6 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
   const [replyContent, setReplyContent] = useState('');
   const [expandedReplies, setExpandedReplies] = useState(new Set());
   const [commentReplies, setCommentReplies] = useState({});
-  const [reportModalOpen, setReportModalOpen] = useState(false);
-  const [reportTarget, setReportTarget] = useState(null);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     fetchComments();
@@ -52,7 +50,11 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      alert('请先登录');
+      modal.showWarning({
+        title: '登录提示',
+        message: '请先登录后再发表评论',
+        darkMode: isDark
+      });
       return;
     }
     if (!newComment.trim()) return;
@@ -63,11 +65,20 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
       if (result.success) {
         setNewComment('');
         fetchComments(); // 重新获取评论列表
+        modal.showSuccessToast('评论发布成功', { darkMode: isDark });
       } else {
-        alert(result.message || '评论发布失败');
+        modal.showError({
+          title: '发布失败',
+          message: result.message || '评论发布失败，请稍后重试',
+          darkMode: isDark
+        });
       }
     } catch (error) {
-      alert('网络错误，请稍后重试');
+      modal.showError({
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试',
+        darkMode: isDark
+      });
     } finally {
       setSubmitting(false);
     }
@@ -76,7 +87,11 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
   const handleSubmitReply = async (e, parentCommentId) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      alert('请先登录');
+      modal.showWarning({
+        title: '登录提示',
+        message: '请先登录后再发表回复',
+        darkMode: isDark
+      });
       return;
     }
     if (!replyContent.trim()) return;
@@ -101,11 +116,20 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
         
         // 重新获取该评论的回复
         fetchReplies(parentCommentId);
+        modal.showSuccessToast('回复发布成功', { darkMode: isDark });
       } else {
-        alert(result.message || '回复发布失败');
+        modal.showError({
+          title: '发布失败',
+          message: result.message || '回复发布失败，请稍后重试',
+          darkMode: isDark
+        });
       }
     } catch (error) {
-      alert('网络错误，请稍后重试');
+      modal.showError({
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试',
+        darkMode: isDark
+      });
     } finally {
       setSubmitting(false);
     }
@@ -142,7 +166,11 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
 
   const handleLikeComment = async (commentId) => {
     if (!isAuthenticated) {
-      alert('请先登录');
+      modal.showWarning({
+        title: '登录提示',
+        message: '请先登录后再点赞',
+        darkMode: isDark
+      });
       return;
     }
 
@@ -190,19 +218,27 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
 
   const handleDeleteComment = (commentId, isReply = false, parentCommentId = null) => {
     if (!isAuthenticated) {
-      alert('请先登录');
+      modal.showWarning({
+        title: '登录提示',
+        message: '请先登录后再删除评论',
+        darkMode: isDark
+      });
       return;
     }
 
-    // 设置删除弹窗状态
-    setDeleteTarget({ commentId, isReply, parentCommentId });
-    setDeleteModalOpen(true);
+    // 使用新的弹窗系统显示删除确认
+    modal.showConfirm({
+      type: 'warning',
+      title: '确认删除',
+      message: '确定要删除这条评论吗？删除后无法恢复。',
+      confirmText: '删除',
+      cancelText: '取消',
+      darkMode: isDark,
+      onConfirm: () => confirmDeleteComment(commentId, isReply, parentCommentId)
+    });
   };
 
-  const confirmDeleteComment = async () => {
-    if (!deleteTarget) return;
-
-    const { commentId, isReply, parentCommentId } = deleteTarget;
+  const confirmDeleteComment = async (commentId, isReply, parentCommentId) => {
     console.log('开始删除评论:', { commentId, isReply, parentCommentId });
 
     try {
@@ -211,10 +247,6 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
       
       if (result.success) {
         console.log('删除成功，开始更新UI');
-        
-        // 关闭删除弹窗
-        setDeleteModalOpen(false);
-        setDeleteTarget(null);
         
         if (isReply && parentCommentId) {
           console.log('删除的是回复，更新父评论回复数量');
@@ -239,15 +271,22 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
         }
         
         console.log('评论删除完成');
+        modal.showSuccessToast('评论已删除', { darkMode: isDark });
       } else {
         console.error('删除失败:', result.message);
-        setDeleteModalOpen(false);
-        setDeleteTarget(null);
+        modal.showError({
+          title: '删除失败',
+          message: result.message || '删除评论失败，请稍后重试',
+          darkMode: isDark
+        });
       }
     } catch (error) {
       console.error('删除评论网络错误:', error);
-      setDeleteModalOpen(false);
-      setDeleteTarget(null);
+      modal.showError({
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试',
+        darkMode: isDark
+      });
     }
   };
 
@@ -255,132 +294,111 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
     try {
       const result = await reportComment(commentId, reason, description);
       if (result.success) {
-        alert('举报提交成功，我们会尽快处理');
-        setReportModalOpen(false);
-        setReportTarget(null);
+        modal.showSuccess({
+          title: '举报成功',
+          message: '举报提交成功，我们会尽快处理',
+          darkMode: isDark
+        });
       } else {
-        alert(result.message || '举报失败');
+        modal.showError({
+          title: '举报失败',
+          message: result.message || '举报失败，请稍后重试',
+          darkMode: isDark
+        });
       }
     } catch (error) {
-      alert('网络错误，请稍后重试');
+      modal.showError({
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试',
+        darkMode: isDark
+      });
     }
   };
 
-  const ReportModal = ({ isOpen, onClose, onSubmit }) => {
-    const [reason, setReason] = useState('');
-    const [description, setDescription] = useState('');
-
-    if (!isOpen) return null;
-
+  const showReportModal = (commentId) => {
+    let reason = '';
+    let description = '';
     const reasons = ['违法违规', '色情低俗', '广告垃圾', '恶意骚扰', '侵犯版权', '其他'];
 
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (!reason) {
-        alert('请选择举报原因');
-        return;
-      }
-      onSubmit(reason, description);
-      setReason('');
-      setDescription('');
+    const ReportForm = () => {
+      const [formReason, setFormReason] = useState('');
+      const [formDescription, setFormDescription] = useState('');
+
+      return (
+        <div className="space-y-4">
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${
+              isDark ? 'text-slate-300' : 'text-gray-700'
+            }`}>
+              举报原因 *
+            </label>
+            <select
+              value={formReason}
+              onChange={(e) => {
+                setFormReason(e.target.value);
+                reason = e.target.value;
+              }}
+              className={`w-full p-2 border rounded-md ${
+                isDark 
+                  ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+              }`}
+              required
+            >
+              <option value="">请选择原因</option>
+              {reasons.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${
+              isDark ? 'text-slate-300' : 'text-gray-700'
+            }`}>
+              详细描述
+            </label>
+            <textarea
+              value={formDescription}
+              onChange={(e) => {
+                setFormDescription(e.target.value);
+                description = e.target.value;
+              }}
+              className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
+                isDark 
+                  ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
+                  : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+              }`}
+              rows="3"
+              placeholder="请描述具体问题..."
+              maxLength="500"
+            />
+          </div>
+        </div>
+      );
     };
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4" style={isDark ? { backgroundColor: '#191c1f', borderColor: '#2a2d30' } : {}}>
-          <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>举报评论</h3>
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
-                举报原因 *
-              </label>
-              <select
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className={`w-full p-2 border rounded-md ${isDark ? 'text-slate-100 border-slate-600' : 'border-gray-300'}`}
-                style={isDark ? { backgroundColor: '#232629', borderColor: '#2a2d30' } : {}}
-                required
-              >
-                <option value="">请选择原因</option>
-                {reasons.map(r => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
-                详细描述
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className={`w-full p-2 border rounded-md ${isDark ? 'text-slate-100 border-slate-600' : 'border-gray-300'}`}
-                style={isDark ? { backgroundColor: '#232629', borderColor: '#2a2d30' } : {}}
-                rows="3"
-                placeholder="请描述具体问题..."
-                maxLength="500"
-              />
-            </div>
-            <div className="flex space-x-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className={`flex-1 px-4 py-2 border rounded-md ${isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-gray-300 hover:bg-gray-50'}`}
-                style={isDark ? { backgroundColor: '#232629' } : {}}
-              >
-                取消
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-              >
-                提交举报
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    );
+    modal.showForm({
+      title: '举报评论',
+      confirmText: '提交举报',
+      cancelText: '取消',
+      darkMode: isDark,
+      children: <ReportForm />,
+      onConfirm: () => {
+        if (!reason) {
+          modal.showWarning({
+            title: '请选择举报原因',
+            message: '请先选择一个举报原因',
+            darkMode: isDark
+          });
+          return;
+        }
+        handleReportComment(commentId, reason, description);
+        modal.closeAllModals();
+      }
+    });
   };
 
-  const DeleteConfirmModal = ({ isOpen, onClose, onConfirm }) => {
-    if (!isOpen) return null;
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-96 max-w-[90vw]" style={isDark ? { backgroundColor: '#191c1f', borderColor: '#2a2d30' } : {}}>
-          <div className="flex justify-between items-center mb-4">
-            <h3 className={`text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-gray-900'}`}>确认删除</h3>
-            <button
-              onClick={onClose}
-              className={`text-xl hover:opacity-75 ${isDark ? 'text-slate-400 hover:text-slate-200' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              ×
-            </button>
-          </div>
-          <p className={`text-sm mb-6 ${isDark ? 'text-slate-300' : 'text-gray-600'}`}>
-            确定要删除这条评论吗？删除后无法恢复。
-          </p>
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className={`flex-1 px-4 py-2 border rounded-md transition-colors ${isDark ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
-              style={isDark ? { backgroundColor: '#2a2d30' } : {}}
-            >
-              取消
-            </button>
-            <button
-              onClick={onConfirm}
-              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-            >
-              确认删除
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   const CommentItem = useCallback(({ comment, isReply = false, allComments = [], parentCommentId = null }) => {
     
@@ -487,10 +505,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
                 </button>
               )}
               <button
-                onClick={() => {
-                  setReportTarget(comment.id);
-                  setReportModalOpen(true);
-                }}
+                onClick={() => showReportModal(comment.id)}
                 className="hover:opacity-75"
                 style={{ color: isDark ? '#9ca3af' : '#6b7280' }}
               >
@@ -560,7 +575,7 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
         )}
       </div>
     );
-  }, [isDark, expandedReplies, commentReplies, handleLikeComment, toggleReplies, setReportTarget, setReportModalOpen, handleDeleteComment, user, comments]);
+  }, [isDark, expandedReplies, commentReplies, handleLikeComment, toggleReplies, showReportModal, handleDeleteComment, user, comments]);
 
   return (
     <div className="rounded-lg shadow-sm border p-4" style={{
@@ -678,26 +693,6 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
           ))}
         </div>
       )}
-
-      {/* 举报模态框 */}
-      <ReportModal 
-        isOpen={reportModalOpen}
-        onClose={() => {
-          setReportModalOpen(false);
-          setReportTarget(null);
-        }}
-        onSubmit={(reason, description) => handleReportComment(reportTarget, reason, description)}
-      />
-
-      {/* 删除确认模态框 */}
-      <DeleteConfirmModal
-        isOpen={deleteModalOpen}
-        onClose={() => {
-          setDeleteModalOpen(false);
-          setDeleteTarget(null);
-        }}
-        onConfirm={confirmDeleteComment}
-      />
     </div>
   );
 };

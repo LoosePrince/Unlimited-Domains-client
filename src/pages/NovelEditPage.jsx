@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from '../components/Modal';
 import Navigation from '../components/Navigation';
 import { getNovelById, updateNovelSettings, getNovelChapters } from '../services/novelAPI';
 import NovelEditSidebar from '../components/NovelEditSidebar';
@@ -12,6 +13,7 @@ const NovelEditPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, isAuthenticated } = useAuth();
+  const modal = useModal();
 
   const [novel, setNovel] = useState(null);
   const [chapters, setChapters] = useState([]);
@@ -298,9 +300,12 @@ const NovelEditPage = () => {
                   onClick={async () => {
                     const result = await handleSaveEdit();
                     if (result.success) {
-                      alert('保存成功！');
+                      modal.showSuccessToast('保存成功！');
                     } else {
-                      alert(`保存失败：${result.message}`);
+                      modal.showError({
+                        title: '保存失败',
+                        message: result.message || '保存失败，请稍后重试'
+                      });
                     }
                   }}
                   className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"

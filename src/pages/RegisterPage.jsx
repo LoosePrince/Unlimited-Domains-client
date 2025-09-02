@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from '../components/Modal';
 import { validateForm, validateField } from '../utils/validation';
 
 const RegisterPage = () => {
@@ -18,7 +19,7 @@ const RegisterPage = () => {
 
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [modalKey, setModalKey] = useState(null);
+  const modal = useModal();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -75,57 +76,31 @@ const RegisterPage = () => {
     }
   };
 
-  const modalContent = {
-    terms: {
+  const showTermsModal = () => {
+    modal.showAlert({
       title: '服务条款（预览）',
-      content: (
-        <>
+      message: (
+        <div>
           <p className="mb-3">本项目为公益、探索性产品，当前服务条款尚未完善，可能随时更改且不作任何保证。</p>
           <p className="mb-3">你应遵守当地法律法规与平台规则，不得发布违法、侵权或不当内容。平台在必要时可移除违规内容并限制账号使用。</p>
           <p className="mb-3">请在使用前谨慎评估风险；继续使用即代表你理解并接受上述不稳定性与可能调整。</p>
-        </>
+        </div>
       )
-    },
-    privacy: {
+    });
+  };
+
+  const showPrivacyModal = () => {
+    modal.showAlert({
       title: '隐私政策（预览）',
-      content: (
-        <>
+      message: (
+        <div>
           <p className="mb-3">本项目为公益、探索性产品，当前隐私政策尚未完善，可能随时更改且不作任何保证。</p>
           <p className="mb-3">我们力求最小化收集必要信息，仅用于提供服务与安全目的；不会出售你的个人数据。实际政策以后续正式版本为准。</p>
           <p className="mb-3">请勿上传敏感信息；继续使用即代表你理解并接受政策的不稳定性与可能调整。</p>
-        </>
+        </div>
       )
-    }
+    });
   };
-
-  const Modal = ({ title, content, onClose }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}></div>
-      <div className="relative bg-white rounded-2xl shadow-2xl w-11/12 max-w-lg mx-auto p-6">
-        <div className="flex items-start justify-between mb-3">
-          <h4 className="text-lg font-medium text-slate-800">{title}</h4>
-          <button
-            aria-label="关闭"
-            onClick={onClose}
-            className="text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="text-slate-700 leading-7">
-          {content}
-        </div>
-        <div className="mt-6 text-right">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
-          >
-            知道了
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="gradient-bg min-h-screen">
@@ -300,11 +275,11 @@ const RegisterPage = () => {
                     />
                     <span className="ml-2 text-sm text-slate-600">
                       我同意
-                      <button type="button" onClick={() => setModalKey('terms')} className="text-slate-700 hover:text-slate-900 transition-colors mx-1 underline">
+                      <button type="button" onClick={showTermsModal} className="text-slate-700 hover:text-slate-900 transition-colors mx-1 underline">
                         服务条款
                       </button>
                       和
-                      <button type="button" onClick={() => setModalKey('privacy')} className="text-slate-700 hover:text-slate-900 transition-colors mx-1 underline">
+                      <button type="button" onClick={showPrivacyModal} className="text-slate-700 hover:text-slate-900 transition-colors mx-1 underline">
                         隐私政策
                       </button>
                     </span>
@@ -418,7 +393,7 @@ const RegisterPage = () => {
                 <input
                   type="password"
                   name="confirmPassword"
-                  value={formData.password}
+                  value={formData.confirmPassword}
                   onChange={handleChange}
                   onBlur={handleBlur}
                   required
@@ -477,13 +452,7 @@ const RegisterPage = () => {
           </div>
         </div>
       </div>
-      {modalKey && (
-        <Modal
-          title={modalContent[modalKey]?.title}
-          content={modalContent[modalKey]?.content}
-          onClose={() => setModalKey(null)}
-        />
-      )}
+
     </div>
   );
 };

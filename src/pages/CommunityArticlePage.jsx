@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from '../components/Modal';
 import { getArticleDetail, getArticleComments, postArticleComment, toggleArticleLike, toggleArticleFavorite, reportArticle, likeComment, reportComment } from '../services/communityAPI';
 import { IconThumbUp, IconStar, IconFlag, IconMessageCircle } from '@tabler/icons-react';
 import FollowButton from '../components/FollowButton';
@@ -11,6 +12,7 @@ import UserAvatar from '../components/UserAvatar';
 const CommunityArticlePage = () => {
   const { id } = useParams();
   const { isAuthenticated } = useAuth();
+  const modal = useModal();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [article, setArticle] = useState(null);
@@ -113,8 +115,15 @@ const CommunityArticlePage = () => {
     setReporting(false);
     if (res.success) {
       setReportOpen(false);
+      modal.showSuccess({
+        title: '举报成功',
+        message: '举报提交成功，我们会尽快处理'
+      });
     } else {
-      alert(res.message || '举报失败');
+      modal.showError({
+        title: '举报失败',
+        message: res.message || '举报失败，请稍后重试'
+      });
     }
   };
 

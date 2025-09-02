@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from '../components/Modal';
 import { getMyNovels, getParticipatedNovels, createNovel, deleteNovel, getNovelById } from '../services/novelAPI';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
@@ -18,6 +19,7 @@ import {
 
 const DashboardPage = () => {
   const { user, isAuthenticated } = useAuth();
+  const modal = useModal();
   const navigate = useNavigate();
 
   const [novels, setNovels] = useState([]);
@@ -29,12 +31,6 @@ const DashboardPage = () => {
   const [createLoading, setCreateLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  // 删除弹窗状态
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deleteModalTitle, setDeleteModalTitle] = useState('');
-  const [deleteModalMessage, setDeleteModalMessage] = useState('');
-  const [deleteModalType, setDeleteModalType] = useState('info'); // 'info' | 'confirm'
-  const [pendingDeleteId, setPendingDeleteId] = useState(null);
 
   // 创建小说表单状态
   const [formData, setFormData] = useState({
@@ -204,39 +200,40 @@ const DashboardPage = () => {
     const isRestricted = target && (target.novel_type === 'mountain_beyond_mountain' || target.novel_type === 'infinite_point') && target.has_other_contributors;
 
     if (isRestricted) {
-      setDeleteModalTitle('无法删除');
-      setDeleteModalMessage('该小说已有其它用户参与创作，当前类型不允许删除小说。');
-      setDeleteModalType('info');
-      setPendingDeleteId(null);
-      setDeleteModalOpen(true);
+      modal.showWarning({
+        title: '无法删除',
+        message: '该小说已有其它用户参与创作，当前类型不允许删除小说。'
+      });
       return;
     }
 
-    setDeleteModalTitle('确认删除');
-    setDeleteModalMessage('确定要删除这本小说吗？此操作不可恢复。');
-    setDeleteModalType('confirm');
-    setPendingDeleteId(novelId);
-    setDeleteModalOpen(true);
+    modal.showConfirm({
+      type: 'warning',
+      title: '确认删除',
+      message: '确定要删除这本小说吗？此操作不可恢复。',
+      confirmText: '删除',
+      cancelText: '取消',
+      onConfirm: () => confirmDelete(novelId)
+    });
   };
 
-  const confirmDelete = async () => {
-    if (!pendingDeleteId) {
-      setDeleteModalOpen(false);
-      return;
-    }
+  const confirmDelete = async (novelId) => {
     try {
-      const result = await deleteNovel(pendingDeleteId);
+      const result = await deleteNovel(novelId);
       if (result.success) {
-        setSuccess('小说删除成功！');
+        modal.showSuccessToast('小说删除成功！');
         fetchMyNovels();
       } else {
-        setError(result.message || '删除失败');
+        modal.showError({
+          title: '删除失败',
+          message: result.message || '删除失败，请稍后重试'
+        });
       }
     } catch (error) {
-      setError('网络错误，请稍后重试');
-    } finally {
-      setPendingDeleteId(null);
-      setDeleteModalOpen(false);
+      modal.showError({
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试'
+      });
     }
   };
 
@@ -739,31 +736,6 @@ const DashboardPage = () => {
       </div>
 
       <Footer />
-      {/* 删除弹窗 */}
-      {deleteModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-lg font-medium text-slate-800 mb-3">{deleteModalTitle}</h3>
-            <p className="text-slate-600 mb-6">{deleteModalMessage}</p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => { setDeleteModalOpen(false); setPendingDeleteId(null); }}
-                className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
-              >
-                关闭
-              </button>
-              {deleteModalType === 'confirm' && (
-                <button
-                  onClick={confirmDelete}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                >
-                  确认删除
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

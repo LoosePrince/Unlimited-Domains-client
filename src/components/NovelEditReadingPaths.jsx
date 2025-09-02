@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { IconPlus, IconMinus, IconCheck, IconX, IconFileText, IconTrash } from '@tabler/icons-react';
+import { useModal } from './Modal';
 import * as novelAPI from '../services/novelAPI';
 
 const NovelEditReadingPaths = ({ novel, chapters }) => {
+  const modal = useModal();
   const [authorPath, setAuthorPath] = useState(null);
   const [chapterTree, setChapterTree] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -125,7 +127,10 @@ const NovelEditReadingPaths = ({ novel, chapters }) => {
           };
         } else {
           // 无效选择，显示错误提示
-          alert('只能选择当前章节的直接后续章节');
+          modal.showWarning({
+            title: '选择限制',
+            message: '只能选择当前章节的直接后续章节'
+          });
           return prev;
         }
       }

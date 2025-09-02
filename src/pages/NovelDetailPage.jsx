@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from '../components/Modal';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import NovelCover from '../components/NovelCover';
@@ -14,6 +15,7 @@ const NovelDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const modal = useModal();
 
   const [novel, setNovel] = useState(null);
   const [chapters, setChapters] = useState([]);
@@ -89,10 +91,16 @@ const NovelDetailPage = () => {
         setIsFavorited(result.action === 'favorite');
         // 可以显示成功提示
       } else {
-        alert(result.message || '操作失败');
+        modal.showError({
+          title: '操作失败',
+          message: result.message || '操作失败，请稍后重试'
+        });
       }
     } catch (error) {
-      alert('网络错误，请稍后重试');
+      modal.showError({
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试'
+      });
     } finally {
       setFavoriteLoading(false);
     }

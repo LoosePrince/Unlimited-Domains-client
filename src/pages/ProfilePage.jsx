@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useModal } from '../components/Modal';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import FollowButton from '../components/FollowButton';
@@ -38,6 +39,7 @@ const ProfilePage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
   const { user: currentUser, isAuthenticated } = useAuth();
+  const modal = useModal();
   
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState(null);
@@ -54,6 +56,7 @@ const ProfilePage = () => {
   const [readingPaths, setReadingPaths] = useState([]);
   const [comments, setComments] = useState([]);
   const [sessions, setSessions] = useState([]);
+
   
   // 分页信息
   const [pagination, setPagination] = useState({});
@@ -193,12 +196,31 @@ const ProfilePage = () => {
         // 重新获取会话列表
         fetchTabContent('sessions');
       } else {
-        alert('下线失败：' + result.message);
+        modal.showError({
+          title: '下线失败',
+          message: result.message || '下线失败，请稍后重试'
+        });
       }
     } catch (error) {
       console.error('下线会话失败:', error);
-      alert('下线失败，请稍后重试');
+      modal.showError({
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试'
+      });
     }
+  };
+
+  // 显示删除确认对话框
+  const showDeleteSessionConfirm = (sessionId) => {
+    modal.showConfirm({
+      type: 'warning',
+      title: '下线登录会话',
+      message: '确定要下线这个登录会话吗？下线后，该设备将需要重新登录。这个操作不可撤销。',
+      confirmText: '确定下线',
+      cancelText: '取消',
+      closable: false,
+      onConfirm: () => handleDeleteSession(sessionId)
+    });
   };
 
   // 获取设备类型显示名称
@@ -776,11 +798,7 @@ const ProfilePage = () => {
               
               {!session.is_current && (
                 <button
-                  onClick={() => {
-                    if (confirm('确定要下线这个登录会话吗？')) {
-                      handleDeleteSession(session.id);
-                    }
-                  }}
+                  onClick={() => showDeleteSessionConfirm(session.id)}
                   className="flex items-center gap-1 px-3 py-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors text-sm"
                   title="下线这个会话"
                 >
@@ -1032,6 +1050,8 @@ const ProfilePage = () => {
       </div>
       
       <Footer />
+
+
 
       {/* 头像上传组件 */}
       <AvatarUpload
