@@ -8,6 +8,7 @@ import NovelCoverAdvanced from '../components/NovelCoverAdvanced';
 import AvatarUpload from '../components/AvatarUpload';
 import UserAvatar from '../components/UserAvatar';
 import { userAPI } from '../services/userAPI';
+import { authAPI } from '../services/authAPI';
 
 import {
   IconUser,
@@ -27,7 +28,10 @@ import {
   IconMessageCircle,
   IconBooks,
   IconChevronRight,
-  IconLoader
+  IconLoader,
+  IconDevices,
+  IconX,
+  IconShield
 } from '@tabler/icons-react';
 
 const ProfilePage = () => {
@@ -49,6 +53,7 @@ const ProfilePage = () => {
   const [readingHistory, setReadingHistory] = useState([]);
   const [readingPaths, setReadingPaths] = useState([]);
   const [comments, setComments] = useState([]);
+  const [sessions, setSessions] = useState([]);
   
   // 分页信息
   const [pagination, setPagination] = useState({});
@@ -154,6 +159,15 @@ const ProfilePage = () => {
             setPagination(result.pagination || {});
           }
           break;
+          
+        case 'sessions':
+          if (!isOwnProfile) return;
+          result = await authAPI.getSessions();
+          if (result.success) {
+            setSessions(result.data.sessions || []);
+            setPagination({}); // 会话不需要分页
+          }
+          break;
       }
     } catch (error) {
       console.error('获取内容失败:', error);
@@ -169,6 +183,52 @@ const ProfilePage = () => {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // 下线登录会话
+  const handleDeleteSession = async (sessionId) => {
+    try {
+      const result = await authAPI.deleteSession(sessionId);
+      if (result.success) {
+        // 重新获取会话列表
+        fetchTabContent('sessions');
+      } else {
+        alert('下线失败：' + result.message);
+      }
+    } catch (error) {
+      console.error('下线会话失败:', error);
+      alert('下线失败，请稍后重试');
+    }
+  };
+
+  // 获取设备类型显示名称
+  const getDeviceTypeName = (deviceInfo) => {
+    if (!deviceInfo) return '未知设备';
+    
+    const userAgent = deviceInfo.userAgent || '';
+    
+    if (userAgent.includes('Mobile') || userAgent.includes('Android') || userAgent.includes('iPhone')) {
+      return '手机';
+    } else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) {
+      return '平板';
+    } else {
+      return '桌面';
+    }
+  };
+
+  // 获取浏览器名称
+  const getBrowserName = (deviceInfo) => {
+    if (!deviceInfo || !deviceInfo.userAgent) return '未知浏览器';
+    
+    const userAgent = deviceInfo.userAgent;
+    
+    if (userAgent.includes('Chrome')) return 'Chrome';
+    if (userAgent.includes('Firefox')) return 'Firefox';
+    if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) return 'Safari';
+    if (userAgent.includes('Edge')) return 'Edge';
+    if (userAgent.includes('Opera')) return 'Opera';
+    
+    return '未知浏览器';
   };
 
   const getNovelTypeName = (type) => {
@@ -241,6 +301,8 @@ const ProfilePage = () => {
         return renderReadingPaths();
       case 'comments':
         return renderComments();
+      case 'sessions':
+        return renderSessions();
       default:
         return null;
     }
@@ -645,19 +707,95 @@ const ProfilePage = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <Navigation />
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <IconLoader className="w-8 h-8 animate-spin text-slate-400" stroke={1.8} />
+  const renderSessions = () => {
+    if (sessions.length === 0) {
+      return (
+        <div className="text-center py-12">
+          <IconDevices className="w-12 h-12 text-slate-400 mx-auto mb-4" stroke={1.8} />
+          <p className="text-slate-500">没有活跃的登录会话</p>
         </div>
-        <Footer />
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {sessions.map((session) => (
+          <div
+            key={session.id}
+            className={`bg-white rounded-xl p-6 shadow-sm border ${
+              session.is_current ? 'border-blue-200 bg-blue-50' : 'border-slate-100'
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <IconDevices className="w-5 h-5 text-slate-500" stroke={1.8} />
+                    <span className="font-medium text-slate-700">
+                      {getDeviceTypeName(session.device_info)}
+                    </span>
+                  </div>
+                  {session.is_current && (
+                    <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                      当前会话
+                    </span>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600">
+                  <div>
+                    <span className="font-medium">浏览器：</span>
+                    <span className="ml-1">{getBrowserName(session.device_info)}</span>
+                  </div>
+                  
+                  {session.device_info?.ip && (
+                    <div>
+                      <span className="font-medium">IP地址：</span>
+                      <span className="ml-1">{session.device_info.ip}</span>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <span className="font-medium">登录时间：</span>
+                    <span className="ml-1">{formatDate(session.created_at)}</span>
+                  </div>
+                  
+                  <div>
+                    <span className="font-medium">最后活跃：</span>
+                    <span className="ml-1">{formatDate(session.updated_at || session.created_at)}</span>
+                  </div>
+                </div>
+                
+                {session.device_info?.userAgent && (
+                  <div className="mt-3 text-xs text-slate-500">
+                    <span className="font-medium">用户代理：</span>
+                    <span className="ml-1 break-all">{session.device_info.userAgent}</span>
+                  </div>
+                )}
+              </div>
+              
+              {!session.is_current && (
+                <button
+                  onClick={() => {
+                    if (confirm('确定要下线这个登录会话吗？')) {
+                      handleDeleteSession(session.id);
+                    }
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                  title="下线这个会话"
+                >
+                  <IconX className="w-4 h-4" stroke={1.8} />
+                  下线
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     );
-  }
+  };
 
-  if (error) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
         <Navigation />
@@ -847,6 +985,16 @@ const ProfilePage = () => {
                     }`}
                   >
                     我的评论
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('sessions')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'sessions'
+                        ? 'border-slate-500 text-slate-900'
+                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    登录管理
                   </button>
                 </>
               )}

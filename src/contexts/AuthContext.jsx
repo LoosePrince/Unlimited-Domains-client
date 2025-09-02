@@ -58,11 +58,8 @@ export const AuthProvider = ({ children }) => {
 
           // 不清除token，保持登录状态
         } finally {
-          // 修复：检查retryCount来决定是否设置loading为false
-          if (retryCount >= 3) {
-            setLoading(false);
-          } else if (retryCount === 0) {
-            // 只有在初始调用时才设置loading为false
+          // 只有在初始调用或重试结束时才设置loading为false
+          if (retryCount === 0 || retryCount >= 3) {
             setLoading(false);
           }
         }
@@ -79,9 +76,9 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   // 登录
-  const login = async (email, password) => {
+  const login = async (email, password, rememberMe = false) => {
     try {
-      const response = await authAPI.login(email, password);
+      const response = await authAPI.login(email, password, rememberMe);
       if (response.success) {
         const { user: userData, token: newToken } = response.data;
         setUser(userData);

@@ -80,10 +80,11 @@ export const authAPI = {
   },
 
   // 用户登录
-  login: async (email, password) => {
+  login: async (email, password, rememberMe = false) => {
     return await api.post('/auth/login', {
       email,
-      password
+      password,
+      rememberMe
     });
   },
 
@@ -100,6 +101,16 @@ export const authAPI = {
   // 刷新token
   refreshToken: async () => {
     return await api.post('/auth/refresh');
+  },
+
+  // 获取用户的所有活跃登录会话
+  getSessions: async () => {
+    return await api.get('/auth/sessions');
+  },
+
+  // 下线特定的登录会话
+  deleteSession: async (sessionId) => {
+    return await api.delete(`/auth/sessions/${sessionId}`);
   }
 };
 
