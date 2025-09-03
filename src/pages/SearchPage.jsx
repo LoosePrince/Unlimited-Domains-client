@@ -48,6 +48,13 @@ const SearchPage = () => {
         setTotalResults(result.novelsTotal || 0);
         setUsers(result.users || []);
         setTotalUsers(result.usersTotal || 0);
+
+        // 如果只有用户有搜索结果，自动切换到用户页
+        const novelsCount = result.novelsTotal || 0;
+        const usersCount = result.usersTotal || 0;
+        if (novelsCount === 0 && usersCount > 0) {
+          setSearchType('users');
+        }
       } else {
         setNovels([]);
         setTotalResults(0);
@@ -73,17 +80,7 @@ const SearchPage = () => {
     }
   };
 
-  // 搜索用户
-  const searchUsers = async (query) => {
-    try {
-      const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('搜索用户失败:', error);
-      return { success: false, message: '搜索用户失败' };
-    }
-  };
+
 
   // 高亮搜索词
   const highlightText = (text, query) => {
