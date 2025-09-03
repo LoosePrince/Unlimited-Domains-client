@@ -17,6 +17,7 @@ import CommunityPage from './pages/CommunityPage';
 import CommunityArticlePage from './pages/CommunityArticlePage';
 import CommunityCreateArticlePage from './pages/CommunityCreateArticlePage';
 import ProfilePage from './pages/ProfilePage';
+import AdminPage from './pages/AdminPage';
 import { AuthProvider } from './contexts/AuthContext';
 import { ModalProvider } from './components/Modal';
 
@@ -46,6 +47,7 @@ function App() {
               <Route path="/community/create" element={<CommunityCreateArticlePage />} />
               <Route path="/community/articles/:id" element={<CommunityArticlePage />} />
               <Route path="/profile/:userId" element={<ProfilePage />} />
+              <Route path="/admin" element={<AdminPage />} />
             </Routes>
           </div>
         </Router>

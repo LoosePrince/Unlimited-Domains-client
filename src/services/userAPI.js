@@ -44,6 +44,16 @@ export const userAPI = {
   // 获取用户评论列表（仅本人可见）
   getUserComments: async (userId, page = 1, limit = 10) => {
     return await api.get(`/users/${userId}/comments?page=${page}&limit=${limit}`);
+  },
+
+  // 检查用户是否为站长
+  checkAdminStatus: async () => {
+    return await api.get('/users/admin/check');
+  },
+
+  // 获取后台管理数据（仅站长可访问）
+  getAdminDashboard: async () => {
+    return await api.get('/users/admin/dashboard');
   }
 };
 

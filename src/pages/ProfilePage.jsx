@@ -40,12 +40,13 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const { user: currentUser, isAuthenticated } = useAuth();
   const modal = useModal();
-  
+
   const [user, setUser] = useState(null);
   const [stats, setStats] = useState(null);
   const [activeTab, setActiveTab] = useState('novels');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // 内容数据
   const [novels, setNovels] = useState([]);
@@ -63,8 +64,9 @@ const ProfilePage = () => {
   const [contentLoading, setContentLoading] = useState(false);
   const [showAvatarUpload, setShowAvatarUpload] = useState(false);
 
-  // 是否为本人资料
+  // 是否为本人资料或站长查看
   const isOwnProfile = isAuthenticated && currentUser?.id === userId;
+  const canViewPrivateTabs = isOwnProfile || (isAuthenticated && isAdmin);
 
   useEffect(() => {
     fetchUserProfile();
@@ -79,8 +81,20 @@ const ProfilePage = () => {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
+
+      // 如果是登录用户，检查是否为站长
+      if (isAuthenticated && currentUser) {
+        try {
+          const adminResult = await userAPI.checkAdminStatus();
+          setIsAdmin(adminResult.success && adminResult.isAdmin);
+        } catch (error) {
+          console.error('检查站长权限失败:', error);
+          setIsAdmin(false);
+        }
+      }
+
       const result = await userAPI.getUserProfile(userId);
-      
+
       if (result.success) {
         setUser(result.user);
         setStats(result.stats);
@@ -119,43 +133,43 @@ const ProfilePage = () => {
           break;
           
         case 'favorites':
-          if (!isOwnProfile) return;
+          if (!canViewPrivateTabs) return;
           result = await userAPI.getUserFavorites(userId, page);
           if (result.success) {
             setFavorites(result.favorites || []);
             setPagination(result.pagination || {});
           }
           break;
-          
+
         case 'bookmarks':
-          if (!isOwnProfile) return;
+          if (!canViewPrivateTabs) return;
           result = await userAPI.getUserBookmarks(userId, page);
           if (result.success) {
             setBookmarks(result.bookmarks || []);
             setPagination(result.pagination || {});
           }
           break;
-          
+
         case 'history':
-          if (!isOwnProfile) return;
+          if (!canViewPrivateTabs) return;
           result = await userAPI.getUserReadingHistory(userId, page);
           if (result.success) {
             setReadingHistory(result.history || []);
             setPagination(result.pagination || {});
           }
           break;
-          
+
         case 'paths':
-          if (!isOwnProfile) return;
+          if (!canViewPrivateTabs) return;
           result = await userAPI.getUserReadingPaths(userId, page);
           if (result.success) {
             setReadingPaths(result.readingPaths || []);
             setPagination(result.pagination || {});
           }
           break;
-          
+
         case 'comments':
-          if (!isOwnProfile) return;
+          if (!canViewPrivateTabs) return;
           result = await userAPI.getUserComments(userId, page);
           if (result.success) {
             setComments(result.comments || []);
@@ -857,13 +871,24 @@ const ProfilePage = () => {
                   </h1>
                   <p className="text-slate-500 text-sm">ID: {user?.id}</p>
                 </div>
-                
-                {/* 关注按钮（非本人时显示） */}
-                {!isOwnProfile && isAuthenticated && (
-                  <div className="mt-4 sm:mt-0">
+
+                <div className="flex items-center gap-3 mt-4 sm:mt-0">
+                  {/* 后台管理按钮（仅站长本人可见） */}
+                  {isOwnProfile && isAdmin && (
+                    <button
+                      onClick={() => navigate('/admin')}
+                      className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                    >
+                      <IconShield className="w-4 h-4" stroke={1.8} />
+                      后台管理
+                    </button>
+                  )}
+
+                  {/* 关注按钮（非本人时显示） */}
+                  {!isOwnProfile && isAuthenticated && (
                     <FollowButton targetUserId={userId} />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
               
               {/* 基本信息 */}
@@ -874,7 +899,7 @@ const ProfilePage = () => {
                   </div>
                 )}
                 
-                {isOwnProfile && user?.email && (
+                {(isOwnProfile || (isAuthenticated && isAdmin)) && user?.email && (
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <IconMail className="w-4 h-4" stroke={1.8} />
                     <span>{user.email}</span>
@@ -951,8 +976,8 @@ const ProfilePage = () => {
                 {isOwnProfile ? '我的文章' : '发布的文章'}
               </button>
               
-              {/* 私有标签页（仅本人可见） */}
-              {isOwnProfile && (
+              {/* 私有标签页（本人或站长可见） */}
+              {canViewPrivateTabs && (
                 <>
                   <button
                     onClick={() => setActiveTab('favorites')}
