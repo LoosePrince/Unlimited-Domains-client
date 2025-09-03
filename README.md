@@ -12,7 +12,7 @@
 
 ## 技术栈
 
-后端：https://github.com/LoosePrince/Unlimited-Domains-server
+后端：https://github.com/LoosePrince/Unlimited-Domains-server<br>
 前端：https://github.com/LoosePrince/Unlimited-Domains-client
 
 ### 后端
@@ -51,7 +51,7 @@
 
 ## 许可证
 
-本项目采用 ISC 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+本项目前后端采用不同许可证 - 前端查看 [LICENSE](LICENSE) 文件了解详情
 
 ## 联系方式
 
