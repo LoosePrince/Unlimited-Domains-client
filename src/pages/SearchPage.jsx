@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { searchNovels } from '../services/novelAPI';
+import api from '../services/authAPI';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import NovelCoverAdvanced from '../components/NovelCoverAdvanced';
@@ -41,8 +42,7 @@ const SearchPage = () => {
     setLoading(true);
     try {
       // 统一调用综合搜索接口
-      const resp = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-      const result = await resp.json();
+      const result = await api.get(`/search?q=${encodeURIComponent(query)}`);
       if (result.success) {
         setNovels(result.novels || []);
         setTotalResults(result.novelsTotal || 0);

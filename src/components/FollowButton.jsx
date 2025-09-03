@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useModal } from './Modal';
+import api from '../services/authAPI';
 
 const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
     const { user, token } = useAuth();
@@ -19,12 +20,7 @@ const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
 
     const checkFollowStatus = async () => {
         try {
-            const response = await fetch(`/api/follows/check/${targetUserId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const data = await response.json();
+            const data = await api.get(`/follows/check/${targetUserId}`);
             if (data.success) {
                 setIsFollowing(data.isFollowing);
             }
@@ -35,8 +31,7 @@ const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
 
     const getFollowCounts = async () => {
         try {
-            const response = await fetch(`/api/follows/counts/${targetUserId}`);
-            const data = await response.json();
+            const data = await api.get(`/follows/counts/${targetUserId}`);
             if (data.success) {
                 setFollowCount(data.data.followers);
             }
@@ -64,19 +59,12 @@ const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
 
         setIsLoading(true);
         try {
-            const url = isFollowing ? '/api/follows/unfollow' : '/api/follows/follow';
-            const method = isFollowing ? 'DELETE' : 'POST';
-            
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ targetUserId })
+            const data = await api({
+                method: isFollowing ? 'DELETE' : 'POST',
+                url: `/follows/${isFollowing ? 'unfollow' : 'follow'}`,
+                data: { targetUserId }
             });
 
-            const data = await response.json();
             if (data.success) {
                 setIsFollowing(!isFollowing);
                 // 更新关注数量

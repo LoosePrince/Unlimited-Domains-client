@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useModal } from '../components/Modal';
+import api from '../services/authAPI';
 import Navigation from '../components/Navigation';
 import { getNovelById, updateNovelSettings, getNovelChapters } from '../services/novelAPI';
 import NovelEditSidebar from '../components/NovelEditSidebar';
@@ -122,19 +123,16 @@ const NovelEditPage = () => {
           formData.append('cover', coverFile);
           formData.append('novelId', novelId);
           
-          console.log('准备发送封面上传请求到:', `/api/novels/upload-cover`);
-          
-          const response = await fetch(`/api/novels/upload-cover`, {
-            method: 'POST',
+          console.log('准备发送封面上传请求到:', `/novels/upload-cover`);
+
+          const response = await api.post('/novels/upload-cover', formData, {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: formData
+              'Content-Type': 'multipart/form-data'
+            }
           });
-          
+
           console.log('封面上传响应状态:', response.status);
-          
-          const result = await response.json();
+          const result = response;
           console.log('封面上传响应结果:', result);
           
           if (result.success) {

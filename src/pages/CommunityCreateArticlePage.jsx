@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../services/authAPI';
 import { createArticle } from '../services/communityAPI';
 import { IconPhoto, IconX, IconAlertCircle } from '@tabler/icons-react';
 
@@ -90,16 +91,14 @@ const CommunityCreateArticlePage = () => {
           try {
             const formData = new FormData();
             formData.append('cover', coverFile);
-            
-            const coverResponse = await fetch(`/api/community/articles/${res.articleId}/cover`, {
-              method: 'POST',
+
+            const coverResponse = await api.post(`/community/articles/${res.articleId}/cover`, formData, {
               headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-              },
-              body: formData
+                'Content-Type': 'multipart/form-data'
+              }
             });
-            
-            if (!coverResponse.ok) {
+
+            if (!coverResponse.success) {
               console.warn('封面上传失败，但不影响文章发布');
             }
           } catch (coverError) {
