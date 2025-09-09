@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useModal } from './Modal';
 import api from '../services/authAPI';
+
+// 全局缓存，避免重复请求
+const followStatusCache = new Map();
+const followCountCache = new Map();
+const pendingRequests = new Map();
 
 const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
     const { user, token } = useAuth();
@@ -9,36 +14,127 @@ const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
     const [isFollowing, setIsFollowing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [followCount, setFollowCount] = useState(0);
+    const mountedRef = useRef(true);
+    const debounceTimerRef = useRef(null);
+
+    // 防抖函数
+    const debounce = useCallback((func, delay) => {
+        return (...args) => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+            debounceTimerRef.current = setTimeout(() => {
+                if (mountedRef.current) {
+                    func(...args);
+                }
+            }, delay);
+        };
+    }, []);
+
+    // 检查是否关注（带缓存和防重复请求）
+    const checkFollowStatus = useCallback(async () => {
+        if (!user || !targetUserId) return;
+
+        const cacheKey = `${user.id}-${targetUserId}`;
+        
+        // 检查缓存
+        if (followStatusCache.has(cacheKey)) {
+            const cachedData = followStatusCache.get(cacheKey);
+            if (Date.now() - cachedData.timestamp < 30000) { // 30秒缓存
+                setIsFollowing(cachedData.isFollowing);
+                return;
+            }
+        }
+
+        // 检查是否有正在进行的请求
+        if (pendingRequests.has(cacheKey)) {
+            return;
+        }
+
+        try {
+            pendingRequests.set(cacheKey, true);
+            const data = await api.get(`/follows/check/${targetUserId}`);
+            if (data.success && mountedRef.current) {
+                setIsFollowing(data.isFollowing);
+                // 更新缓存
+                followStatusCache.set(cacheKey, {
+                    isFollowing: data.isFollowing,
+                    timestamp: Date.now()
+                });
+            }
+        } catch (error) {
+            console.error('检查关注状态失败:', error);
+        } finally {
+            pendingRequests.delete(cacheKey);
+        }
+    }, [user, targetUserId]);
+
+    // 获取关注数量（带缓存和防重复请求）
+    const getFollowCounts = useCallback(async () => {
+        if (!targetUserId) return;
+
+        const cacheKey = `count-${targetUserId}`;
+        
+        // 检查缓存
+        if (followCountCache.has(cacheKey)) {
+            const cachedData = followCountCache.get(cacheKey);
+            if (Date.now() - cachedData.timestamp < 60000) { // 60秒缓存
+                setFollowCount(cachedData.count);
+                return;
+            }
+        }
+
+        // 检查是否有正在进行的请求
+        if (pendingRequests.has(cacheKey)) {
+            return;
+        }
+
+        try {
+            pendingRequests.set(cacheKey, true);
+            const data = await api.get(`/follows/counts/${targetUserId}`);
+            if (data.success && mountedRef.current) {
+                setFollowCount(data.data.followers);
+                // 更新缓存
+                followCountCache.set(cacheKey, {
+                    count: data.data.followers,
+                    timestamp: Date.now()
+                });
+            }
+        } catch (error) {
+            console.error('获取关注数量失败:', error);
+        } finally {
+            pendingRequests.delete(cacheKey);
+        }
+    }, [targetUserId]);
+
+    // 防抖的检查函数
+    const debouncedCheckFollowStatus = useCallback(
+        debounce(checkFollowStatus, 300),
+        [checkFollowStatus, debounce]
+    );
+
+    const debouncedGetFollowCounts = useCallback(
+        debounce(getFollowCounts, 300),
+        [getFollowCounts, debounce]
+    );
 
     // 检查是否关注
     useEffect(() => {
         if (user && targetUserId) {
-            checkFollowStatus();
-            getFollowCounts();
+            debouncedCheckFollowStatus();
+            debouncedGetFollowCounts();
         }
-    }, [user, targetUserId]);
+    }, [user, targetUserId, debouncedCheckFollowStatus, debouncedGetFollowCounts]);
 
-    const checkFollowStatus = async () => {
-        try {
-            const data = await api.get(`/follows/check/${targetUserId}`);
-            if (data.success) {
-                setIsFollowing(data.isFollowing);
+    // 清理函数
+    useEffect(() => {
+        return () => {
+            mountedRef.current = false;
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
             }
-        } catch (error) {
-            console.error('检查关注状态失败:', error);
-        }
-    };
-
-    const getFollowCounts = async () => {
-        try {
-            const data = await api.get(`/follows/counts/${targetUserId}`);
-            if (data.success) {
-                setFollowCount(data.data.followers);
-            }
-        } catch (error) {
-            console.error('获取关注数量失败:', error);
-        }
-    };
+        };
+    }, []);
 
     const handleFollow = async () => {
         if (!user) {
@@ -66,13 +162,27 @@ const FollowButton = ({ targetUserId, className = '', size = 'md' }) => {
             });
 
             if (data.success) {
-                setIsFollowing(!isFollowing);
+                const newFollowingStatus = !isFollowing;
+                setIsFollowing(newFollowingStatus);
+                
                 // 更新关注数量
-                if (isFollowing) {
-                    setFollowCount(prev => Math.max(0, prev - 1));
-                } else {
-                    setFollowCount(prev => prev + 1);
-                }
+                const newFollowCount = isFollowing 
+                    ? Math.max(0, followCount - 1) 
+                    : followCount + 1;
+                setFollowCount(newFollowCount);
+
+                // 更新缓存
+                const cacheKey = `${user.id}-${targetUserId}`;
+                followStatusCache.set(cacheKey, {
+                    isFollowing: newFollowingStatus,
+                    timestamp: Date.now()
+                });
+
+                const countCacheKey = `count-${targetUserId}`;
+                followCountCache.set(countCacheKey, {
+                    count: newFollowCount,
+                    timestamp: Date.now()
+                });
             } else {
                 modal.showError({
                     title: '操作失败',

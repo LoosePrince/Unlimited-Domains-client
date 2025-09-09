@@ -31,13 +31,13 @@ const ChapterComments = ({ novelId, chapterId, isDark = false }) => {
   }, [novelId, chapterId]);
 
   const fetchComments = async () => {
-    console.log('开始获取评论:', { novelId, chapterId });
+    // console.log('开始获取评论:', { novelId, chapterId });
     setLoading(true);
     try {
       const result = await getChapterComments(novelId, chapterId);
-      console.log('获取评论结果:', result);
+      // console.log('获取评论结果:', result);
       if (result.success) {
-        console.log('设置评论列表，共', result.comments.length, '条评论');
+        // console.log('设置评论列表，共', result.comments.length, '条评论');
         setComments(result.comments);
       }
     } catch (error) {

@@ -1897,10 +1897,28 @@ onClick={() => {
                   const rightThird = width * 2 / 3;
                   if (x < leftThird) {
                     if (currentPage > 0 || (currentPage === 0 && prevChapterId)) {
-                      goToPreviousPage();
+                      // 左侧点击：右滑动画到上一页
+                      animationDirectionRef.current = 'prev';
+                      isAnimatingRef.current = true;
+                      setDragX(width);
+                      setTimeout(() => {
+                        isAnimatingRef.current = false;
+                        animationDirectionRef.current = null;
+                        setDragX(0);
+                        goToPreviousPage();
+                      }, 250);
                     }
                   } else if (x > rightThird && (currentPage < totalPages - 1 || pages[currentPage]?.type === 'comments')) {
-                    goToNextPage();
+                    // 右侧点击：左滑动画到下一页
+                    animationDirectionRef.current = 'next';
+                    isAnimatingRef.current = true;
+                    setDragX(-width);
+                    setTimeout(() => {
+                      isAnimatingRef.current = false;
+                      animationDirectionRef.current = null;
+                      setDragX(0);
+                      goToNextPage();
+                    }, 250);
                   } else if (x >= leftThird && x <= rightThird) {
                     if (pages[currentPage]?.type !== 'comments') {
                       toggleMenu();
