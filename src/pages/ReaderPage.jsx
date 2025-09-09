@@ -6,6 +6,7 @@ import { useModal } from '../components/Modal';
 import NovelEditView from '../components/NovelEditView';
 import { getBookmarksByNovel, addBookmark, removeBookmark, checkBookmarkExists, getGlobalBookmarks, getOtherBookmarks } from '../services/novelAPI';
 import ChapterComments from '../components/ChapterComments';
+import { calculatePagination as calculatePaginationUtil, getHorizontalProgressPercent, cleanText } from '../utils/paginationCalculator';
 import {
   IconChevronDown,
   IconChevronLeft,
@@ -196,51 +197,10 @@ onClick={() => {
   // 当前阅读进度百分比的持久引用（0-100），用于模式切换时快速还原
   const currentProgressPercentRef = useRef(0);
 
-  // 文本清理函数 - 移除无意义的空行
-  const cleanText = (text) => {
-    if (!text || typeof text !== 'string') return '';
-
-    return text
-      .replace(/\n\s*\n\s*\n+/g, '\n\n')  // 将3个或更多连续空行替换为2个
-      .replace(/\n\s*\n\s*\n+/g, '\n\n')  // 再次处理，确保没有更多连续空行
-      .replace(/^\s+/, '')  // 移除开头空白
-      .replace(/\s+$/, ''); // 移除结尾空白
-  };
-
-  // 翻页工具函数
-  const splitTextIntoParagraphs = (text) => {
-    if (!text || typeof text !== 'string') return [];
-
-    // 先尝试按双换行分割
-    let paragraphs = text.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-
-    // 如果没有分割出段落，尝试按单换行分割
-    if (paragraphs.length === 0) {
-      paragraphs = text.split(/\n/).filter(p => p.trim().length > 0);
-    }
-
-    // 如果还是没有，就整个作为一个段落
-    if (paragraphs.length === 0) {
-      paragraphs = [text.trim()];
-    }
-
-    return paragraphs;
-  };
-
-  const splitTextIntoSentences = (text) => {
-    if (!text || typeof text !== 'string') return [];
-
-    const sentences = text.split(/[。！？；.!?;]\s*/).filter(s => s.trim().length > 0);
-
-    // 如果没有分割出句子，尝试按逗号分割
-    if (sentences.length === 0) {
-      return text.split(/[，,]\s*/).filter(s => s.trim().length > 0);
-    }
-
-    return sentences;
-  };
 
   const isCalculatingRef = useRef(false);
+
+  // 使用独立的分页计算模块
   const calculatePagination = async () => {
     if (!chapter?.content) {
       return;
@@ -249,15 +209,8 @@ onClick={() => {
     isCalculatingRef.current = true;
     setPaginationLoading(true);
 
-    // 在外层作用域声明变量
-    let actualContentDiv = null;
-    let originalContent = '';
-
     try {
-      // 等待DOM渲染完成
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // 使用容器ref或者计算窗口尺寸
+      // 获取容器尺寸
       const container = containerRef.current || contentRef.current;
       if (!container) {
         console.error('分页计算失败：找不到容器元素');
@@ -265,233 +218,52 @@ onClick={() => {
         return;
       }
 
-      // 直接获取水平分页模式下的内容容器高度
-      // 使用多种选择器尝试找到内容容器（仅针对水平翻页容器）
+      // 获取水平分页模式下的内容容器高度
       let contentContainer = container.querySelector('.max-w-3xl.mx-auto.px-4.py-4.h-full.flex.flex-col');
 
-      let availableContentHeight = 0;
-      let containerWidth = 0;
-      let titleHeight = 0;
+      let containerSize = { width: 0, height: 0 };
 
       if (contentContainer && contentContainer.clientHeight > 0) {
         // 获取容器的实际高度和宽度
-        availableContentHeight = contentContainer.clientHeight;
-        containerWidth = contentContainer.clientWidth;
-
-        // 创建临时标题元素测量高度（第一页需要）
-        const tempTitle = document.createElement('h1');
-        tempTitle.textContent = chapter.title;
-        tempTitle.className = 'text-2xl font-semibold mb-6 flex-shrink-0';
-        tempTitle.style.cssText = `
-          position: absolute;
-          top: -9999px;
-          left: -9999px;
-          width: ${containerWidth}px;
-          font-family: ${settings.fontFamily};
-          color: ${settings.textColor};
-        `;
-        document.body.appendChild(tempTitle);
-        titleHeight = tempTitle.offsetHeight + 24; // 包含mb-6的24px
-        document.body.removeChild(tempTitle);
-
-        /* prod: no debug */
+        containerSize = {
+          width: contentContainer.clientWidth,
+          height: contentContainer.clientHeight
+        };
       } else {
         // 降级方案：如果找不到容器，使用计算方式
-        /* prod: no debug */
         const totalHeight = window.innerHeight;
         const topBar = document.querySelector('.fixed.top-0');
         const topBarHeight = topBar ? topBar.offsetHeight : 40;
         const bottomBar = document.querySelector('.fixed.bottom-4.right-4');
         const bottomBarHeight = bottomBar ? bottomBar.offsetHeight + 16 : 30;
         const containerPadding = 32; // py-4 = 16px top + 16px bottom
-        containerWidth = Math.min(window.innerWidth - 32, 768);
 
-        // 计算标题高度
-        const tempTitle = document.createElement('h1');
-        tempTitle.textContent = chapter.title;
-        tempTitle.className = 'text-2xl font-semibold mb-6 flex-shrink-0';
-        tempTitle.style.cssText = `
-          position: absolute;
-          top: -9999px;
-          left: -9999px;
-          width: ${containerWidth}px;
-          font-family: ${settings.fontFamily};
-          color: ${settings.textColor};
-        `;
-        document.body.appendChild(tempTitle);
-        titleHeight = tempTitle.offsetHeight + 24;
-        document.body.removeChild(tempTitle);
-
-        availableContentHeight = totalHeight - topBarHeight - bottomBarHeight - containerPadding;
+        containerSize = {
+          width: Math.min(window.innerWidth - 32, 768),
+          height: totalHeight - topBarHeight - bottomBarHeight - containerPadding
+        };
       }
 
-      // 计算第一页和其他页面的可用高度
-      const availableHeightForFirstPage = availableContentHeight - titleHeight;
-      const availableHeightForOtherPages = availableContentHeight;
-
-      /* prod: no debug */
-
-      if (availableHeightForOtherPages <= 0 || containerWidth <= 0) {
-        throw new Error(`无效的容器尺寸: ${containerWidth}x${availableHeightForOtherPages}`);
-      }
-
-      // 创建模拟测试容器，但使用实际容器的尺寸
-      const testContainer = document.createElement('div');
-      testContainer.className = 'prose max-w-none';
-      testContainer.style.cssText = `
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-        width: ${containerWidth}px;
-        max-width: none;
-        font-family: ${settings.fontFamily};
-        font-size: ${settings.fontSize}px;
-        line-height: ${settings.lineHeight};
-        color: ${settings.textColor};
-        background-color: ${settings.backgroundColor};
-        padding: 0;
-        margin: 0;
-        border: none;
-        box-sizing: border-box;
-      `;
-      document.body.appendChild(testContainer);
-
-      // 手动应用Tailwind CSS的段落间距规则
-      const style = document.createElement('style');
-      style.setAttribute('data-pagination', 'true');
-      style.textContent = `
-        .mb-5 { margin-bottom: 1.25rem; }
-        .first\\:mt-0:first-child { margin-top: 0; }
-        .last\\:mb-0:last-child { margin-bottom: 0; }
-      `;
-      document.head.appendChild(style);
-
-      // 创建段落高度测量函数 - 使用测试容器但基于实际容器尺寸
-      const measureParagraphsHeight = (text) => {
-        if (!text.trim()) return 0;
-
-        // 清空测试容器
-        testContainer.innerHTML = '';
-
-        // 将文本按行分割并过滤空行
-        const lines = text.split('\n').filter(line => line.trim());
-
-        // 为每个非空行创建p标签，与实际渲染完全一致
-        lines.forEach((line, index) => {
-          const p = document.createElement('p');
-          p.className = 'mb-5 first:mt-0 last:mb-0';
-          p.style.cssText = `
-            text-indent: 2em;
-            line-height: ${settings.lineHeight};
-            font-size: ${settings.fontSize}px;
-            font-family: ${settings.fontFamily};
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-          `;
-          p.textContent = line;
-          testContainer.appendChild(p);
-        });
-
-        return testContainer.scrollHeight;
-      };
-
-      // 预处理文本，清理多余的空行
-      const cleanedText = cleanText(chapter.content);
-      /* prod: no debug */
-
-      // 使用更精确的字符级分页算法
-      const allText = cleanedText;
-
-      const pagesData = [];
-      let currentIndex = 0;
-
-      while (currentIndex < allText.length) {
-        // 判断当前是否为第一页（需要为标题预留空间）
-        const isFirstPage = pagesData.length === 0;
-        const availableHeight = isFirstPage ? availableHeightForFirstPage : availableHeightForOtherPages;
-
-        // 使用二分查找找到最精确的分页边界
-        let left = currentIndex;
-        let right = allText.length;
-        let maxFitIndex = currentIndex;
-
-        // 二分查找最大能容纳的字符数
-        while (left <= right) {
-          const mid = Math.floor((left + right) / 2);
-          const testContent = allText.slice(currentIndex, mid);
-          const testHeight = measureParagraphsHeight(testContent);
-
-          if (testHeight <= availableHeight) {
-            // 当前内容能容纳，尝试更多字符
-            maxFitIndex = mid;
-            left = mid + 1;
-          } else {
-            // 内容太多，减少字符
-            right = mid - 1;
-          }
-        }
-
-        // 如果没有找到任何可容纳的内容（连一个字符都放不下），强制添加一个字符
-        if (maxFitIndex === currentIndex) {
-          maxFitIndex = currentIndex + 1;
-        }
-
-        // 在二分查找结果基础上，尝试精确调整（逐字符微调）
-        // 向前尝试添加更多字符，直到真正超出边界
-        while (maxFitIndex < allText.length) {
-          const testContent = allText.slice(currentIndex, maxFitIndex + 1);
-          const testHeight = measureParagraphsHeight(testContent);
-
-          if (testHeight <= availableHeight) {
-            maxFitIndex++;
-          } else {
-            break;
-          }
-        }
-
-        // 保存这一页的内容
-        const pageContent = allText.slice(currentIndex, maxFitIndex);
-        pagesData.push({ content: pageContent, type: 'content' });
-
-        // 验证实际高度
-        const actualHeight = measureParagraphsHeight(pageContent);
-        const paragraphCount = pageContent.split('\n').filter(line => line.trim()).length;
-
-        // 更新到下一页的起始位置
-        currentIndex = maxFitIndex;
-
-        /* prod: no debug */
-      }
-
-      // 如果没有生成任何页面，至少添加一个包含全部内容的页面
-      if (pagesData.length === 0) {
-        pagesData.push({ content: allText, type: 'content' });
-        /* prod: no debug */
-      }
-
-      // 输出每页的字符数和高度信息用于调试
-      /* prod: no debug */
-      pagesData.forEach((page, index) => {
-        if (page.type === 'content') {
-          const pageHeight = measureParagraphsHeight(page.content);
-          const maxHeight = index === 0 ? availableHeightForFirstPage : availableHeightForOtherPages;
-          const paragraphCount = page.content.split('\n').filter(line => line.trim()).length;
-          /* prod: no debug */
+      // 调用独立的分页计算模块
+      const result = await calculatePaginationUtil({
+        title: chapter.title,
+        content: chapter.content,
+        containerSize,
+        fontSettings: {
+          fontFamily: settings.fontFamily,
+          fontSize: settings.fontSize,
+          lineHeight: settings.lineHeight,
+          textColor: settings.textColor,
+          backgroundColor: settings.backgroundColor
         }
       });
 
-      // 分页完成：标记初始化完成，实际页数还原交给 useEffect 处理
+      // 分页完成：标记初始化完成
       horizontalInitializedRef.current = true;
 
-      // 添加评论页
-      pagesData.push({ content: '', type: 'comments' });
+      setPages(result.pages);
+      setTotalPages(result.totalPages);
 
-      // 清理测试容器和样式
-      document.body.removeChild(testContainer);
-      document.head.removeChild(style);
-
-      setPages(pagesData);
-      setTotalPages(pagesData.length);
       // 默认从第一页开始；若存在待恢复进度或当前进度>0，则交由后续还原逻辑处理
       const hasPendingRestore = pendingRestoreRef.current != null && pendingRestoreRef.current > 0;
       const hasKnownProgress = (currentProgressPercentRef.current || 0) > 0;
@@ -499,21 +271,10 @@ onClick={() => {
         setCurrentPage(0);
       }
       // 将分页结果保存供顺序引导流程读取
-      lastPagesDataRef.current = pagesData;
+      lastPagesDataRef.current = result.pages;
+
     } catch (error) {
       console.error('分页计算失败:', error);
-
-      // 尝试清理可能创建的DOM元素
-      try {
-        const tempContainer = document.body.querySelector('[style*="position: absolute"][style*="top: -9999px"]');
-        if (tempContainer) {
-          document.body.removeChild(tempContainer);
-        }
-        const tempStyle = document.head.querySelector('style[data-pagination]');
-        if (tempStyle) {
-          document.head.removeChild(tempStyle);
-        }
-      } catch (cleanupError) { /* ignore */ }
 
       // 错误恢复：创建单页内容
       const fallbackPages = [
@@ -542,7 +303,7 @@ onClick={() => {
     if (!currentPercent || Number.isNaN(currentPercent)) {
       try {
         if (paginationMode === 'horizontal') {
-          currentPercent = getHorizontalProgressPercent();
+          currentPercent = getHorizontalProgressPercent(pages, currentPage);
         } else {
           const el = containerRef.current;
           const scrollTop = el ? el.scrollTop : (window.pageYOffset || document.documentElement.scrollTop);
@@ -604,7 +365,7 @@ onClick={() => {
       setCurrentPage(pageIndex);
       // 翻页模式：在用户触发翻页时上报进度
       if (paginationMode === 'horizontal' && isAuthenticated && pages && pages.length > 0) {
-        const percent = getHorizontalProgressPercent();
+        const percent = getHorizontalProgressPercent(pages, currentPage);
         lastHistoryMarkRef.current = percent;
         currentProgressPercentRef.current = percent;
         updateReadingProgress(novelId, chapterId, percent, currentReadingPath?.id);
@@ -1435,24 +1196,6 @@ onClick={() => {
     return (el && el.clientWidth) ? el.clientWidth : window.innerWidth || 1;
   };
 
-  // 将页索引映射为百分比（仅正文页参与进度）
-  const getHorizontalProgressPercent = useMemo(() => {
-    return () => {
-      if (!pages || pages.length === 0) return 0;
-      const contentPages = pages.filter(p => p?.type === 'content').length;
-      if (contentPages <= 1) return 0;
-      const currentIsComments = pages[currentPage]?.type === 'comments';
-      // 评论页不计入进度，按最后一页正文计算
-      const effectiveIndex = currentIsComments
-        ? contentPages - 1
-        : Math.min(
-          contentPages - 1,
-          pages.slice(0, Math.min(currentPage + 1, pages.length)).filter(p => p?.type === 'content').length - 1
-        );
-      const percent = (effectiveIndex / (contentPages - 1)) * 100;
-      return Math.max(0, Math.min(100, Math.round(percent * 100) / 100));
-    };
-  }, [pages, currentPage]);
 
   if (initializing && loading) {
     return (
