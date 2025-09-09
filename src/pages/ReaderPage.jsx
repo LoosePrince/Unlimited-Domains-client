@@ -1508,8 +1508,7 @@ onClick={() => {
               // 分页计算中
               <div className="h-full flex items-center justify-center">
                 <div className="text-center">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-                  <div className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>正在计算分页...</div>
+                  {/* 计算分页时为空 */}
                 </div>
               </div>
             ) : totalPages > 0 ? (
@@ -2410,9 +2409,8 @@ onClick={() => {
                           {paginationMode === 'horizontal' && (
                             <div className={`mt-3 p-2 rounded-lg text-xs ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600'}`}>
                               {paginationLoading ? (
-                                <div className="flex items-center gap-2">
-                                  <div className="w-3 h-3 border border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                                  <span>正在计算分页...</span>
+                                <div>
+                                  {/* 计算分页时为空 */}
                                 </div>
                               ) : totalPages > 0 ? (
                                 <div>
