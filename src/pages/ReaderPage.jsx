@@ -1,36 +1,35 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getChapterById, updateReadingProgress, addReadingHistory, getNovelChapters, getNovelById, getReadingProgress, getReadingPaths, getUserCustomPath, getAuthorRecommendedPath, getRandomNextChapter, getReadingPathDetail, toggleChapterLike, checkChapterLikeStatus, getChapterLikeCount, reportChapter } from '../services/novelAPI';
-import { useAuth } from '../contexts/AuthContext';
-import { useModal } from '../components/Modal';
-import NovelEditView from '../components/NovelEditView';
-import { getBookmarksByNovel, addBookmark, removeBookmark, checkBookmarkExists, getGlobalBookmarks, getOtherBookmarks } from '../services/novelAPI';
-import ChapterComments from '../components/ChapterComments';
-import { calculatePagination as calculatePaginationUtil, getHorizontalProgressPercent, cleanText } from '../utils/paginationCalculator';
 import {
+  IconArrowLeft,
+  IconBookmark,
+  IconBookmarkFilled,
   IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
   IconChevronUp,
+  IconExclamationCircle,
+  IconFileText,
   IconHeart,
   IconHeartFilled,
-  IconBookmark,
-  IconBookmarkFilled,
+  IconHelp,
   IconMessagePlus,
-  IconFileText,
-  IconArrowLeft,
-  IconSun,
   IconMoon,
+  IconNavigation,
   IconPalette,
   IconRoute,
-  IconHelp,
-  IconUser,
   IconStar,
-  IconNavigation,
-  IconX,
-  IconExclamationCircle,
-  IconTrash
+  IconSun,
+  IconTrash,
+  IconUser,
+  IconX
 } from '@tabler/icons-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import ChapterComments from '../components/ChapterComments';
+import { useModal } from '../components/Modal';
+import NovelEditView from '../components/NovelEditView';
+import { useAuth } from '../contexts/AuthContext';
+import { addBookmark, addReadingHistory, checkBookmarkExists, checkChapterLikeStatus, getBookmarksByNovel, getChapterById, getChapterLikeCount, getGlobalBookmarks, getNovelById, getNovelChapters, getOtherBookmarks, getRandomNextChapter, getReadingPathDetail, getReadingPaths, getReadingProgress, removeBookmark, reportChapter, toggleChapterLike, updateReadingProgress } from '../services/novelAPI';
+import { calculatePagination as calculatePaginationUtil, cleanText, getHorizontalProgressPercent, splitIntoCleanParagraphs } from '../utils/paginationCalculator';
 
 // 本地阅读设置键名
 const SETTINGS_KEY_LIGHT = 'reader_settings_light';
@@ -42,6 +41,8 @@ const defaultSettings = {
   fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"',
   fontSize: 18,
   lineHeight: 1.8,
+  /** 翻页模式：段落上下外边距（px），与分页测算一致 */
+  paragraphSpacing: 12,
   backgroundColor: '#ffffff',
   textColor: '#1f2937'
 };
@@ -50,6 +51,7 @@ const defaultDark = {
   fontFamily: defaultSettings.fontFamily,
   fontSize: 18,
   lineHeight: 1.8,
+  paragraphSpacing: 12,
   backgroundColor: '#0e1516',
   textColor: '#e2e8f0'
 };
@@ -135,7 +137,7 @@ const ReaderPage = () => {
               <button
                 title="删除书签"
                 className={`p-1.5 rounded ${isDark ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600'}`}
-onClick={() => {
+                onClick={() => {
                   modal.showConfirm({
                     type: 'warning',
                     title: '删除书签',
@@ -254,7 +256,8 @@ onClick={() => {
           fontSize: settings.fontSize,
           lineHeight: settings.lineHeight,
           textColor: settings.textColor,
-          backgroundColor: settings.backgroundColor
+          backgroundColor: settings.backgroundColor,
+          paragraphSpacing: settings.paragraphSpacing ?? 12
         }
       });
 
@@ -278,7 +281,7 @@ onClick={() => {
 
       // 错误恢复：创建单页内容
       const fallbackPages = [
-        { content: chapter.content, type: 'content' },
+        { paragraphs: splitIntoCleanParagraphs(chapter.content || ''), type: 'content' },
         { content: '', type: 'comments' }
       ];
       setPages(fallbackPages);
@@ -588,7 +591,7 @@ onClick={() => {
     if (loading || !chapter) return;
     // 引导阶段：立即计算分页，不再延迟
     calculatePagination();
-  }, [loading, chapter, paginationMode, settings.fontSize, settings.lineHeight, settings.fontFamily]);
+  }, [loading, chapter, paginationMode, settings.fontSize, settings.lineHeight, settings.fontFamily, settings.paragraphSpacing]);
 
   // 监听窗口大小变化，重新计算分页（两种模式都计算，便于随时切换）
   useEffect(() => {
@@ -1229,7 +1232,7 @@ onClick={() => {
                 <span className={`${isDark ? 'text-slate-300' : 'text-slate-600'}`} title="作者">
                   作者：
                   {chapter.author_id ? (
-                    <Link 
+                    <Link
                       to={`/profile/${chapter.author_id}`}
                       className={`${isDark ? 'text-slate-200' : 'text-slate-800'} hover:underline`}
                       onClick={(e) => e.stopPropagation()}
@@ -1278,7 +1281,7 @@ onClick={() => {
                   <div title="作者">
                     作者：
                     {chapter.author_id ? (
-                      <Link 
+                      <Link
                         to={`/profile/${chapter.author_id}`}
                         className={`${isDark ? 'text-slate-200' : 'text-slate-800'} hover:underline`}
                         onClick={(e) => e.stopPropagation()}
@@ -1417,18 +1420,16 @@ onClick={() => {
                         children: (
                           <div className="space-y-4">
                             <div>
-                              <label className={`block text-sm font-medium mb-2 ${
-                                isDark ? 'text-slate-300' : 'text-gray-700'
-                              }`}>
+                              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'
+                                }`}>
                                 举报原因 *
                               </label>
                               <select
                                 name="reason"
-                                className={`w-full p-2 border rounded-md ${
-                                  isDark 
-                                    ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
-                                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
-                                }`}
+                                className={`w-full p-2 border rounded-md ${isDark
+                                  ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500'
+                                  : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+                                  }`}
                                 required
                               >
                                 <option value="">请选择原因</option>
@@ -1441,18 +1442,16 @@ onClick={() => {
                               </select>
                             </div>
                             <div>
-                              <label className={`block text-sm font-medium mb-2 ${
-                                isDark ? 'text-slate-300' : 'text-gray-700'
-                              }`}>
+                              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'
+                                }`}>
                                 详细描述
                               </label>
                               <textarea
                                 name="description"
-                                className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
-                                  isDark 
-                                    ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
-                                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
-                                }`}
+                                className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${isDark
+                                  ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500'
+                                  : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+                                  }`}
                                 rows="3"
                                 placeholder="请描述具体问题..."
                                 maxLength="500"
@@ -1720,33 +1719,28 @@ onClick={() => {
                                 </h1>
                               )}
                               <div
-                                className={`prose max-w-none flex-1 transition-opacity duration-200 ${contentVisible ? 'opacity-100' : 'opacity-0'} ${isDark ? 'prose-invert' : ''}`}
-                                style={{ color: settings.textColor }}
+                                className={`flex-1 min-h-0 overflow-hidden transition-opacity duration-200 ${contentVisible ? 'opacity-100' : 'opacity-0'}`}
+                                style={{
+                                  display: 'flow-root',
+                                  color: settings.textColor
+                                }}
                               >
-                                {cleanText(p?.content || '')
-                                  .split('\n')
-                                  .map((line, index) => {
-                                    if (!line.trim()) {
-                                      return null;
-                                    }
-                                    return (
-                                      <p
-                                        key={index}
-                                        className="mb-5 first:mt-0 last:mb-0"
-                                        style={{
-                                          textIndent: '2em',
-                                          lineHeight: settings.lineHeight,
-                                          fontSize: settings.fontSize,
-                                          fontFamily: settings.fontFamily,
-                                          wordWrap: 'break-word',
-                                          overflowWrap: 'break-word'
-                                        }}
-                                      >
-                                        {line}
-                                      </p>
-                                    );
-                                  })
-                                  .filter(Boolean)}
+                                {(p?.paragraphs ?? []).map((para, idx) => (
+                                  <p
+                                    key={idx}
+                                    style={{
+                                      marginTop: settings.paragraphSpacing ?? 12,
+                                      marginBottom: settings.paragraphSpacing ?? 12,
+                                      fontSize: settings.fontSize,
+                                      lineHeight: settings.lineHeight,
+                                      fontFamily: settings.fontFamily,
+                                      wordBreak: 'break-word',
+                                      color: settings.textColor
+                                    }}
+                                  >
+                                    {para}
+                                  </p>
+                                ))}
                               </div>
                             </>
                           ) : (
@@ -1786,18 +1780,16 @@ onClick={() => {
                                         children: (
                                           <div className="space-y-4">
                                             <div>
-                                              <label className={`block text-sm font-medium mb-2 ${
-                                                isDark ? 'text-slate-300' : 'text-gray-700'
-                                              }`}>
+                                              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'
+                                                }`}>
                                                 举报原因 *
                                               </label>
                                               <select
                                                 name="reason"
-                                                className={`w-full p-2 border rounded-md ${
-                                                  isDark 
-                                                    ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
-                                                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
-                                                }`}
+                                                className={`w-full p-2 border rounded-md ${isDark
+                                                  ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500'
+                                                  : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+                                                  }`}
                                                 required
                                               >
                                                 <option value="">请选择原因</option>
@@ -1810,18 +1802,16 @@ onClick={() => {
                                               </select>
                                             </div>
                                             <div>
-                                              <label className={`block text-sm font-medium mb-2 ${
-                                                isDark ? 'text-slate-300' : 'text-gray-700'
-                                              }`}>
+                                              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-slate-300' : 'text-gray-700'
+                                                }`}>
                                                 详细描述
                                               </label>
                                               <textarea
                                                 name="description"
-                                                className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${
-                                                  isDark 
-                                                    ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500' 
-                                                    : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
-                                                }`}
+                                                className={`w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${isDark
+                                                  ? 'bg-slate-700 border-slate-600 text-slate-100 focus:ring-blue-500'
+                                                  : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500'
+                                                  }`}
                                                 rows="3"
                                                 placeholder="请描述具体问题..."
                                                 maxLength="500"
@@ -2069,6 +2059,23 @@ onClick={() => {
                                 onChange={(e) => applySetting({ lineHeight: Number(e.target.value) })}
                                 className="w-full accent-blue-600"
                               />
+                            </div>
+                            <div className="space-y-2 md:col-span-3">
+                              <label className={`text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+                                段落间距（翻页）：{settings.paragraphSpacing ?? 12}px
+                              </label>
+                              <input
+                                type="range"
+                                min={0}
+                                max={32}
+                                step={1}
+                                value={settings.paragraphSpacing ?? 12}
+                                onChange={(e) => applySetting({ paragraphSpacing: Number(e.target.value) })}
+                                className="w-full accent-blue-600"
+                              />
+                              <p className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
+                                按换行分段并忽略空行；仅影响分页阅读排版与分页计算。
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -2575,7 +2582,7 @@ onClick={() => {
                             <p className={`text-xs truncate ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                               作者：
                               {c.author_id ? (
-                                <Link 
+                                <Link
                                   to={`/profile/${c.author_id}`}
                                   className={`${isDark ? 'text-slate-300' : 'text-slate-700'} hover:underline`}
                                   onClick={(e) => e.stopPropagation()}
@@ -2701,7 +2708,7 @@ onClick={() => {
                         <div className={`text-xs truncate mt-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                           作者：
                           {b.author_id ? (
-                            <Link 
+                            <Link
                               to={`/profile/${b.author_id}`}
                               className={`${isDark ? 'text-slate-300' : 'text-slate-700'} hover:underline`}
                               onClick={(e) => e.stopPropagation()}
